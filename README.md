@@ -1,6 +1,6 @@
 # Név és rendelésszám vágólapra másoló
 
-**Aktuális kiadás (EXE és telepítő):** `v1.1.3-rc.1`  
+**Aktuális kiadás (EXE és telepítő):** `v1.1.4`  
 **Verzióforrás:** `VERSION` (az EXE-be beágyazva, a Release tag/ZIP ezt ellenőrzi)  
 **Platform:** Windows 11 x64  
 **Programfájl:** `name - number copy.exe`
@@ -103,3 +103,12 @@ Az EXE, a `VERSION` fájl, a kiadási Git-tag, a Release címe, a ZIP neve és a
 - A név- és rendelésszám-választó, fókuszkezelés, SOS, HU/RO/SK/CZ prefix, böngészőbeállítás és telepítő változatlan.
 - Automatikus JavaScript névkinyerési tesztek a tényleges Go-EXE-be beágyazott kódról (román, magyar, szlovák, cseh, angol, SOS).
 - Éles `RO 191` rendeléshez nem férünk hozzá, így a valós böngészős tesztet a felhasználónak kell megerősítenie; addig előzetes RC.
+
+
+## v1.1.4 - stabil kiadás (2026-10-12)
+
+- A `v1.1.3-rc.1` névkinyerő, választó és böngészőtelepítő **működése változatlan**; csak a kiadási verzió és a stabil státusz frissült.
+- A felhasználó saját gépén egyidejűleg nyitott HU, RO, SK, CZ rendeléseknél ellenőrizte a vevőnevek kiolvasását és a számozott választót; a román névhibát megszűntnek jelezte.
+- A következő PATCH-verzió `v1.1.4`, külön GitHub Release, EXE és teljes telepítő ZIP, a kiadási fájlba is beágyazott azonos verzióval.
+- A kiadási pipeline a `VERSION` fájl `-rc.` utótagjából automatikusan dönt: RC esetén prerelease, utótag nélkül stabil / latest. Korábbi Release-eket **nem ír felül**.
+- A **másik Windows-gépes telepítési teszt még hátravan**; ez nem módosítja a felhasználó saját gépén már igazolt névfelismerést.

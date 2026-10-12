@@ -37,8 +37,9 @@ jobs:
           $tag = (Get-Content -Raw -LiteralPath VERSION).Trim()
           $m = [regex]::Match($tag, '^v([0-9]+)\.([0-9]+)\.([0-9]+)(?:-rc\.([0-9]+))?$')
           if (-not $m.Success) { throw "Invalid VERSION: $tag" }
-          if ($env:REQUESTED_STABLE -eq 'true' -and $tag.Contains('-rc.')) {
-            throw 'An RC build cannot be promoted as stable without a new explicitly verified stable version.'
+          $isPreRelease = $tag.Contains('-rc.')
+          if ($env:REQUESTED_STABLE -eq 'true' -and $isPreRelease) {
+            throw 'An RC build cannot be promoted as stable: remove RC and increment PATCH in VERSION.'
           }
           $oldReleases = @(gh release list --json tagName --limit 100 | ConvertFrom-Json)
           if ($LASTEXITCODE -ne 0) { throw 'Cannot read existing GitHub releases' }
@@ -130,13 +131,31 @@ jobs:
           - 1 rendelés: vágólapra másolás konzol és fókuszváltás nélkül.
           - 2+ rendelés: számbillentyűs konzolválasztó.
           - Román vevőadat-fejlécek, Nume/Prenume és célzott ügyfélblokkbeli névfelismerés javítva, HU/EN/SK/CZ regressziós tesztekkel.
-          - Automatikus Brave / Chrome észlelés, 9222 / 9223 port, dedikált CDP-profil, Start/Asztal/Windows indulási parancsikonok.
-          - Az előző, felhasználó által ellenőrzött v1.0.3 stabil változat megőrizve.
-          - Az RC-kiadás a böngészőtelepítés valós kipróbálásáig nem tekintendő stabilnak.
+          - Automatikus Brave / Chrome / Edge észlelés, 9222 / 9223 port, dedikált CDP-profil, Start/Asztal/Windows indulási parancsikonok.
+          - A felhasználó 2026-10-12-én saját Windows-gépén ellenőrizte a magyar, román, cseh és szlovák vevőneveket, a több rendeléses választót és a másolást.
+          - Stabil kiadásnál nincs RC-jelölés; a korábbi stabil v1.0.3 és minden RC kiadás változatlanul megmarad.
+          - Másik Windows-gépen a telepítés és a böngésző automatikus indulása további ellenőrzésre vár.
           "@
           Set-Content -LiteralPath 'release-notes.md' -Value $notes -Encoding utf8
           $args = @('release','create',$tag,'name - number copy.exe',$zip,'--title',"Név és rendelésszám másoló $tag",'--notes-file','release-notes.md','--target','main')
-          if ($env:REQUESTED_STABLE -eq 'true') { $args += '--latest' } else { $args += '--prerelease' }
+          if ($tag -match '-rc\.[0-9]+
+          # The release must target the CURRENT default branch (not an outdated workflow commit).
+          # GitHub blocks GITHUB_TOKEN release creation when target differs in .github/workflows.
+          $branchHead = (gh api "repos/$env:GITHUB_REPOSITORY/commits/main" --jq .sha).Trim()
+          if ($LASTEXITCODE -ne 0) { throw 'Cannot resolve default branch head' }
+          if ($branchHead -ne $env:GITHUB_SHA) {
+            throw "Main advanced during build; refusing mismatched release. HEAD=$branchHead BUILT=$env:GITHUB_SHA"
+          }
+          & gh @args
+          if ($LASTEXITCODE -ne 0) { throw "Release creation failed: $tag" }
+          $published = gh release view $tag --json url,assets | ConvertFrom-Json
+          if ($LASTEXITCODE -ne 0) { throw 'Release verification failed' }
+          $assets = @($published.assets | ForEach-Object { $_.name })
+          if ($assets.Count -ne 2 -or $assets -notcontains $zip -or @($assets | Where-Object { $_ -like '*.exe' }).Count -ne 1) {
+            throw 'Release assets incomplete: standalone EXE and full ZIP are both required'
+          }
+          Write-Host "Released version $tag at $($published.url)"
+) { $args += '--prerelease' } else { $args += '--latest' }
           # The release must target the CURRENT default branch (not an outdated workflow commit).
           # GitHub blocks GITHUB_TOKEN release creation when target differs in .github/workflows.
           $branchHead = (gh api "repos/$env:GITHUB_REPOSITORY/commits/main" --jq .sha).Trim()

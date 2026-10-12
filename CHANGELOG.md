@@ -1,3 +1,12 @@
+## 2026-10-12 - v1.1.4 (stabil kiadás, RC-jelölés nélkül)
+
+- A felhasználó megerősítette, hogy a v1.1.3-rc.1 több webshopos rendelésválasztója, névfelismerése és másolója saját gépén megfelelően működik (köztük 3dlampa.ro #191).
+- Új stabil GitHub Release; PATCH növelés 1.1.3 -> 1.1.4. Az EXE-be ágyazott VERSION, ZIP, Release tag és cím azonos.
+- **A másoló-, névkinyerő-, telepítő- és böngészőindító logikán nem változtattunk.**
+- A kiadási pipeline RC nélküli verziót automatikusan stabil `--latest` Release-ként publikál; az RC-tag-ek megmaradnak.
+- Még hátralévő teszt: másik Windows-gépen a teljes telepítés és gépszintű indító ellenőrzése.
+- Az összes korábbi stabil és RC Release letölthető, visszaállítható mentés marad.
+
 ## 2026-10-12 - v1.1.3-rc.1 (román vásárlói név helyreállítása)
 
 - Hibajavítás: a korábbi JS kizárólag HU/EN ügyféladat-fejléceket kezelt; a `3dlampa.ro` rendelésnél `[név nem olvasható]` lett az eredmény.
