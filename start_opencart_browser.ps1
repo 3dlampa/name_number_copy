@@ -4,6 +4,7 @@ param(
     [ValidateSet('Auto','Brave','Chrome','Edge')][string]$Browser = 'Auto',
     [switch]$AutoStart,
     [switch]$CheckOnly,
+    [switch]$FromElevatedInstaller,
     [string]$TestUserRoot = ''
 )
 Set-StrictMode -Version Latest
@@ -11,6 +12,79 @@ $ErrorActionPreference = 'Stop'
 $configPath = Join-Path $PSScriptRoot 'opencart_browser_config.json'
 if (-not (Test-Path -LiteralPath $configPath -PathType Leaf)) { throw 'Hianyzik az OpenCart bongeszo konfiguracioja. Futtasd ujra a telepitot.' }
 $config = Get-Content -LiteralPath $configPath -Raw -Encoding UTF8 | ConvertFrom-Json
+
+# A BAT kozvetlen adminisztratori futasakor is NORMAL felhasznaloi bongeszo kell.
+# A Windows Task Scheduler InteractiveToken + Limited futtatasa nem ker jelszot.
+# A feladatot csak atmenetileg hozzuk letre, utana toroljuk.
+if ($FromElevatedInstaller) {
+    $taskName = 'NNC-CDP-Install-' + [guid]::NewGuid().ToString('N')
+    $scheduler = $null
+    $folder = $null
+    $registered = $null
+    try {
+        $session = (Get-Process -Id $PID).SessionId
+        if ($session -eq 0) { throw 'Nincs aktiv interaktiv Windows munkamenet (Session 0).' }
+        $shells = @(Get-CimInstance Win32_Process -Filter "Name = 'explorer.exe'" -ErrorAction Stop |
+            Where-Object { $_.SessionId -eq $session })
+        if ($shells.Count -lt 1) {
+            throw 'Ebben a Windows munkamenetben nem talalhato explorer.exe. Jelentkezz be az asztalra, es ott inditsd a telepitot.'
+        }
+        $owner = Invoke-CimMethod -InputObject $shells[0] -MethodName GetOwner -ErrorAction Stop
+        if ($owner.ReturnValue -ne 0 -or -not $owner.User) { throw 'Nem allapithato meg a bejelentkezett Windows-felhasznalo.' }
+        $account = [string]$owner.Domain + '\' + [string]$owner.User
+        Write-Host "[INFO] Normal Windows-bongeszo inditasa: $account / munkamenet $session"
+        $scheduler = New-Object -ComObject Schedule.Service
+        $scheduler.Connect()
+        $folder = $scheduler.GetFolder('\')
+        $task = $scheduler.NewTask(0)
+        $task.RegistrationInfo.Description = 'Ideiglenes OpenCart CDP-kapcsolat ellenorzo inditas'
+        $task.Settings.Enabled = $true
+        $task.Settings.Hidden = $true
+        $task.Settings.AllowDemandStart = $true
+        $task.Settings.ExecutionTimeLimit = 'PT2M'
+        $task.Principal.UserId = $account
+        $task.Principal.LogonType = 3  # InteractiveToken: a felhasznalonak mar be kell lennie jelentkezve
+        $task.Principal.RunLevel = 0   # Limited: nem emelt jogosultsag
+        $action = $task.Actions.Create(0)
+        $action.Path = Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe'
+        $action.Arguments = '-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File "' + $PSCommandPath + '" -Browser Auto'
+        $action.WorkingDirectory = $PSScriptRoot
+        $registered = $folder.RegisterTaskDefinition($taskName, $task, 6, $account, $null, 3, $null)
+        $null = $registered.Run($null)
+        $expected = [string]$config.Primary
+        $likelyPort = if ($expected -eq 'Chrome') { 9223 } else { 9222 }
+        $portsToCheck = @($likelyPort) + @(9222, 9223) | Select-Object -Unique
+        $tested = $false
+        for ($i = 0; $i -lt 48; $i++) {
+            foreach ($checkPort in $portsToCheck) {
+                try {
+                    $v = Invoke-RestMethod -Uri "http://127.0.0.1:$checkPort/json/version" -TimeoutSec 2 -ErrorAction Stop
+                    $list = Invoke-WebRequest -Uri "http://127.0.0.1:$checkPort/json/list" -UseBasicParsing -TimeoutSec 2 -ErrorAction Stop
+                    if ($v.Browser -and $v.webSocketDebuggerUrl -and $list.StatusCode -eq 200) {
+                        Write-Host "[OK] CDP port $checkPort mukodik a bongeszoinditas utan."
+                        $tested = $true
+                        break
+                    }
+                } catch { }
+            }
+            if ($tested) { break }
+            Start-Sleep -Milliseconds 500
+        }
+        if (-not $tested) {
+            throw 'A bejelentkezett felhasznalo bongeszojen nem valt elerhetove a 9222/9223 CDP. Ellenorizd a felhasznalo TEMP mappajaban a name_number_copy_browser.log fajlt.'
+        }
+        return
+    } catch {
+        Write-Error ("Gepi telepites utan a normal felhasznaloi CDP inditas hibas: " + $_.Exception.Message) -ErrorAction Continue
+        exit 1
+    } finally {
+        if ($null -ne $folder -and $null -ne $registered) {
+            try { $folder.DeleteTask($taskName, 0) } catch {
+                Write-Warning ("Nem sikerult eltavolitani az ideiglenes Task Scheduler feladatot: " + $taskName)
+            }
+        }
+    }
+}
 function Find-LocalBrowser([string]$Name) {
     $exe = switch ($Name) { 'Brave' { 'brave.exe' }; 'Chrome' { 'chrome.exe' }; 'Edge' { 'msedge.exe' } }
     $sub = switch ($Name) {

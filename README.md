@@ -1,6 +1,6 @@
 # Név és rendelésszám vágólapra másoló
 
-**Aktuális kiadás (EXE és telepítő):** `v1.1.5-rc.1`  
+**Aktuális kiadás (EXE és telepítő):** `v1.1.6-rc.1`  
 **Verzióforrás:** `VERSION` (az EXE-be beágyazva, a Release tag/ZIP ezt ellenőrzi)  
 **Platform:** Windows 11 x64  
 **Programfájl:** `name - number copy.exe`
@@ -127,3 +127,13 @@ Az EXE, a `VERSION` fájl, a kiadási Git-tag, a Release címe, a ZIP neve és a
 - A másoló EXE rendelésfelismerési, névkinyerési és fókuszkezelési logikája **változatlan**, a beágyazott PATCH-verziószám kivételével.
 - Ez előzetes RC kiadás, amíg a második, korábban hibás gépen nincs visszaellenőrizve.
 
+
+## v1.1.6-rc.1 – rendszergazdaként indított telepítő javítása
+
+- A v1.1.5-rc.1 hibája: ha a telepítő **már adminisztrátori jogosultsággal** indult, a `-CheckOnly` ágon csak megvizsgálta a 9222-es portot, de nem indította el a böngészőt. A felhasználói napló ennek következtében `CDP 9222 nem elérhető` hibát mutatott.
+- Most ilyen esetben is **önállóan indítja a böngészőt az asztalra bejelentkezett Windows-felhasználó normál jogosultságával**. Ehhez ideiglenes Windows Task Scheduler feladatot használ, **InteractiveToken + Limited RunLevel** módban.
+- Nincs új függőség, nincs jelszókérés vagy új felhasználói fiók. A feladatot a telepítő eltávolítja a CDP-ellenőrzés után.
+- Megmaradt a normál UAC kétlépcsős telepítés: ha nem adminisztrátori joggal indult, a telepítő a gépi parancsikonok után a felhasználó saját munkamenetéből indítja a böngészőt.
+- A sikerhez ténylegesen válaszolnia kell a `/json/version` és `/json/list` CDP-végpontnak. Hiba esetén STOP és hibanapló.
+- A felhasználó által igazolt `v1.1.4` stabil EXE rendelésválasztója, névkinyerése, fókuszkezelése és vágólapformátuma **változatlan**.
+- RC tesztkiadás: a külön Windows-fiókos/valós Brave indítás gyakorlati visszaellenőrzése szükséges a hibás gépen.

@@ -152,6 +152,28 @@ try {
         Remove-Job $server -Force -ErrorAction SilentlyContinue
     }
     Write-Host 'PASS: missing-CDP error + mock healthy-CDP success; current-user launcher path verified.'
+    # Regression: ha a BAT mar emelt jogosultsaggal fut, nem eleg a
+    # -CheckOnly. A normal user browserjet interaktiv, Limited jogu
+    # Windows Task Scheduler feladatnak kell elinditania.
+    $batCurrent = [IO.File]::ReadAllText($batPath)
+    $starterCurrent = [IO.File]::ReadAllText($starter)
+    $adminBranch = [regex]::Match($batCurrent,'(?s)\r\n:VERIFY_ADMIN\r\n(.*?)\r\n:COPY_SCRIPT\r\n')
+    if (-not $adminBranch.Success) { throw 'Missing explicit elevated-installer branch' }
+    if ($adminBranch.Groups[1].Value -notmatch '-FromElevatedInstaller' -or
+        $adminBranch.Groups[1].Value -match '-CheckOnly') {
+        throw 'Elevated installer still skips live CDP startup'
+    }
+    if ($starterCurrent -notmatch 'TASK_LOGON_INTERACTIVE_TOKEN' -and
+        $starterCurrent -notmatch 'InteractiveToken') {
+        throw 'Missing interactive logged-on user launch'
+    }
+    if ($starterCurrent -notmatch 'RunLevel = 0' -or
+        $starterCurrent -notmatch 'RegisterTaskDefinition' -or
+        $starterCurrent -notmatch 'DeleteTask') {
+        throw 'Scheduled task must have limited privileges and be removed after use'
+    }
+    Write-Host 'PASS: elevated installer uses temporary Limited/InteractiveToken task, not CheckOnly.'
+
 
     Write-Host 'PASS: all-user common shortcuts/startup, Brave/Chrome/Edge, Edge-only virgin Win11, per-user profile at runtime, backups, hash, no-browser STOP, same-path, Unicode, CRLF.'
 } finally {

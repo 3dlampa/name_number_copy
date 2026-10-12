@@ -128,19 +128,14 @@ echo [OK] CDP 9222/9223 bongeszo kapcsolat valoban ellenorizve.
 goto :SUCCESS
 
 :VERIFY_ADMIN
-rem A BAT-ot mar adminisztratorkent inditottak. A bongeszot nem
-rem nyithatjuk meg emelt jogosultsagokkal. Ellenorizzuk a MEGLEVO CDP-t.
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%INSTALL_DIR%\start_opencart_browser.ps1" -Browser Auto -CheckOnly
-if errorlevel 1 goto :NEED_NORMAL_LAUNCH
-echo [OK] A CDP mar fut es elerheto.
+rem Mar emelt admin joggal fut a telepito. Egy ideiglenes Windows
+rem Task Scheduler InteractiveToken/Limited feladat elinditja a bongeszot
+rem a JELENLEG BEJELENTKEZETT felhasznalo normal jogosultsagaival.
+echo [INFO] Normal felhasznaloi OpenCart bongeszo automatikus inditasa...
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%INSTALL_DIR%\start_opencart_browser.ps1" -Browser Auto -FromElevatedInstaller
+if errorlevel 1 goto :BROWSER_FAIL
+echo [OK] CDP kapcsolat ellenorizve a bejelentkezett felhasznalo alatt.
 goto :SUCCESS
-
-:NEED_NORMAL_LAUNCH
-echo [HIBA] A gepi fajlok felkerultek, de a CDP inditasa meg NEM ellenorzott.
-echo [INFO] A BAT-ot NORMAL dupla kattintassal futtasd, ne jobb klikk/Run as admin.
-echo [INFO] A telepito magatol ker majd UAC engedelyt, es normal
-echo [INFO] felhasznalokent ellenorzi a bongeszo valodi mukodeset.
-goto :FAIL
 
 :COPY_SCRIPT
 rem Nem irjuk felul ugyanazzal az utvonallal sajat magat.

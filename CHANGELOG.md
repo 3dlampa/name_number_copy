@@ -1,3 +1,12 @@
+## 2026-10-12 – v1.1.6-rc.1 (adminisztrátori telepítésből automatikus, normál felhasználói CDP)
+
+- A második Windows-gépen a v1.1.5-rc.1 `VERIFY_ADMIN` ága a `-CheckOnly` paraméterrel ellenőrizte a 9222-es portot, de a Brave indítását kihagyta. Ez bizonyított telepítőhiba volt, nem függőség- vagy OpenCart-hiba.
+- Most adminisztrátori indítás esetén is elindítja a Brave/Chrome/Edge böngészőt a bejelentkezett Explorer-felhasználó nevében, ideiglenes Task Scheduler **InteractiveToken + Limited** feladattal.
+- A normál felhasználói CDP-végpontokat továbbra is élőben ellenőrzi; a gépi telepítés önmagában nem jelent sikert.
+- Az átmeneti ütemezett feladat a futás végén törlésre kerül. Nem kell külső futtatókörnyezet, felhasználónév/jelszó megadása, és a normál böngészőprofilokat nem módosítja.
+- Az előző stabil v1.1.4 és az összes korábbi RC Release megmarad. A másoló EXE-logika nem változik; kizárólag PATCH-verziószám emelkedik `1.1.5 → 1.1.6`.
+- Windows integrációs teszt ellenőrzi, hogy az emelt jogosultságú telepítő nem `-CheckOnly` ellenőrzéssel áll meg.
+
 ## 2026-10-12 – v1.1.5-rc.1 (telepítő: tényleges CDP-ellenőrzés)
 
 - Gyökérok: a másoló az új gépen települt, de egyik böngészőfolyamat sem rendelkezett debugporttal; a telepítő mégis sikert jelzett.
