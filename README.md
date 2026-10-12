@@ -63,3 +63,13 @@ Az `-H windowsgui` szükséges, hogy egy rendelésnél ne nyíljon konzol. Az `A
 - A vágólapot csak sikeresen kiolvasott, kiválasztott rendelésnél írja.
 - CDP WebSocket csak localhost `9222`/`9223` porton engedélyezett.
 - Hibáknál nem ír ki felugró ablakot, helyette naplófájlba ír.
+
+## Browser autoconfiguration (v1.1.0-rc.1)
+
+Az uj telepito felismeri a telepitett Brave es Google Chrome bongeszot. A Brave CDP-portja 9222; Chrome 9223. A felhasznalo Windows-alapertelmezett Brave/Chrome bongeszojet automatikusan preferalja (ha nincs, Brave, majd Chrome). Mindket telepitett bongeszohoz kulon inditoikon jon letre az Asztalon es a Start menuben. A preferalt bongeszo minden felhasznaloi Windows-bejelentkezeskor automatikusan elindul, ezert nem kell kezzel debug parancssori kapcsolokat irni.
+
+A Chrome 136-tol `--remote-debugging-port` csak kulon `--user-data-dir` adatkotarral megbizhato. A telepito a korabbi OpenCartDebug profilokat, ha megtalalja, megtartja es ujrafelhasznalja. A regi normal Brave/Chrome profilok, a Windows alapertelmezett bongeszo es az eredeti taskbar ikonok valtozatlanok. Az uj ikon neve **OpenCart - Brave** vagy **OpenCart - Chrome**; rendelest ebben a kulon bongeszoprofilban kell megnyitni, es elso alkalommal a webshopba bejelentkezni. A normal bongeszoikonra kattintva tovabbra is elindulhat a normal (CDP nelkuli) profil, ennek automatikus atirasa nem biztonsagos.
+
+A debug-port kizarolag 127.0.0.1-hez kotodik, de a gepen futo mas helyi folyamatok technikailag hozzaferhetnek a CDP-hez, ezert a kulon bongeszo-profilban csak a szukseges munkat vegezd. Sikertelen bongeszo-felderites vagy portellenorzes eseten a telepites NEM jelez sikert. A korabbi EXE es a fajlkonfiguraciok mentesei megmaradnak.
+
+**Biztonsagi statusz:** a korabbi ellenorzott v1.0.3 Release valtozatlanul elerheto; a v1.1.0-rc.1 elozetes, Windows/Illustrator gyakorlati tesztre var.

@@ -1,33 +1,34 @@
 @echo off
 setlocal EnableExtensions DisableDelayedExpansion
 chcp 65001 >nul
-title Nev es rendelesszam masolo - telepites
+title Nev es rendelesszam masolo - teljes telepites
 
-rem A forras EXE mindig a telepito mellett legyen.
+rem name - number copy.exe, setup_browser.ps1, start_opencart_browser.ps1
+rem KOZOS kicsomagolt mappabol indul, telepitest kovetoen automatikus
+rem Brave/Chrome felismeres, CDP-profil, 9222/9223 port es login autostart.
 set "SOURCE=%~dp0name - number copy.exe"
+set "SCRIPT_SETUP=%~dp0setup_browser.ps1"
+set "SCRIPT_START=%~dp0start_opencart_browser.ps1"
 set "DEFAULT_DIR=D:\3d lámpa\Photoshop és Illustrator scriptek"
 set "INTERACTIVE=1"
 set "INSTALL_DIR="
 set "BACKUP_CREATED="
 
 if not exist "%SOURCE%" goto :MISSING_SOURCE
+if not exist "%SCRIPT_SETUP%" goto :MISSING_SCRIPTS
+if not exist "%SCRIPT_START%" goto :MISSING_SCRIPTS
 
-rem Lehetoseg telepitesre argumentummal (automatizalt tesztekhez is).
-rem Pelda: telepites.bat "E:\Scriptek"
 if not "%~1"=="" goto :USE_ARGUMENT
 
 echo.
-echo ==============================================================
-echo     Nev es rendelesszam masolo - telepites
-echo ==============================================================
+echo ============================================================
+echo    Nev es rendelesszam masolo - teljes telepites
+echo ============================================================
 echo.
 echo Alapertelmezett telepitesi hely:
 echo   %DEFAULT_DIR%
 echo.
-echo Nyomj Entert a fenti hely elfogadasahoz,
-echo vagy add meg a sajat celmappad TELJES eleresi utjat.
-echo Pelda: E:\Munka\Scriptek
-echo.
+echo Enter = alapertelmezett. Vagy irj be egy masik TELJES utvonalat.
 set "USER_DIR="
 set /p "USER_DIR=Telepitesi mappa: "
 if defined USER_DIR set "INSTALL_DIR=%USER_DIR%"
@@ -39,7 +40,6 @@ set "INTERACTIVE=0"
 set "INSTALL_DIR=%~1"
 
 :INSTALL
-rem Az Explorerbol bemasolt idezojeleket is fogadjuk el.
 set "INSTALL_DIR=%INSTALL_DIR:"=%"
 if not defined INSTALL_DIR goto :INVALID_DIR
 for %%I in ("%INSTALL_DIR%") do set "INSTALL_DIR=%%~fI"
@@ -48,36 +48,54 @@ set "TARGET=%INSTALL_DIR%\name - number copy.exe"
 
 echo.
 echo Celmappa: "%INSTALL_DIR%"
-echo EXE: "%TARGET%"
-
-rem Ha a BAT es az EXE eleve a celmappaban van, ne masoljuk onmagara.
-if /I "%SOURCE%"=="%TARGET%" goto :SAME_FILE
-
-rem A valasztott mappa hianya nem hiba; letrehozzuk.
+echo.
 if not exist "%INSTALL_DIR%\" mkdir "%INSTALL_DIR%" >nul 2>&1
 if not exist "%INSTALL_DIR%\" goto :CREATE_DIR_FAIL
 
-rem Elobb biztonsagi mentes, csak utana csere.
+rem A telepito elejen semmit sem modositunk a bongeszoikonokon.
+rem Az EXE mentese megelzi az esetleges felulirast.
+if /I "%SOURCE%"=="%TARGET%" goto :INSTALL_SCRIPTS
 if exist "%TARGET%" call :BACKUP_CURRENT
 if exist "%TARGET%" if errorlevel 1 goto :BACKUP_FAIL
-
-rem A fajl eloszor ideiglenes nev alatt kerul a celmappaba.
-rem A regi EXE-t csak a sikeres masolas utan csereljuk le.
 set "STAGING=%TARGET%.installing_%RANDOM%_%RANDOM%"
 copy /B /Y "%SOURCE%" "%STAGING%" >nul
 if errorlevel 1 goto :COPY_FAIL
 move /Y "%STAGING%" "%TARGET%" >nul
 if errorlevel 1 goto :MOVE_FAIL
-
-rem A celban a forrasfajl meretet ellenorizzuk.
 for %%I in ("%SOURCE%") do set "SOURCE_SIZE=%%~zI"
 for %%I in ("%TARGET%") do set "TARGET_SIZE=%%~zI"
 if not "%SOURCE_SIZE%"=="%TARGET_SIZE%" goto :VERIFY_FAIL
 
-echo.
-echo [OK] Sikeres telepites: "%TARGET%"
-if defined BACKUP_CREATED echo [OK] Regi EXE mentese: "%BACKUP_CREATED%"
+:INSTALL_SCRIPTS
+call :COPY_SCRIPT "%SCRIPT_SETUP%" "%INSTALL_DIR%\setup_browser.ps1"
+if errorlevel 1 goto :SCRIPT_FAIL
+call :COPY_SCRIPT "%SCRIPT_START%" "%INSTALL_DIR%\start_opencart_browser.ps1"
+if errorlevel 1 goto :SCRIPT_FAIL
+
+echo [INFO] Brave/Chrome automatikus felismerese es beallitasa...
+rem A tesztparameterek kizarolag a CI tesztkornyezetben aktivak.
+if "%NNC_TEST_SKIP_LAUNCH%"=="1" goto :SETUP_TEST
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%INSTALL_DIR%\setup_browser.ps1" -InstallDir "%INSTALL_DIR%"
+if errorlevel 1 goto :BROWSER_FAIL
 goto :SUCCESS
+
+:SETUP_TEST
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%INSTALL_DIR%\setup_browser.ps1" -InstallDir "%INSTALL_DIR%" -BravePath "%NNC_TEST_BRAVE_PATH%" -ChromePath "%NNC_TEST_CHROME_PATH%" -TestRoot "%NNC_TEST_ROOT%" -SkipLaunch
+if errorlevel 1 goto :BROWSER_FAIL
+goto :SUCCESS
+
+:COPY_SCRIPT
+rem Nem irjuk felul ugyanazzal az utvonallal sajat magat.
+if /I "%~f1"=="%~f2" exit /b 0
+if exist "%~2" (
+    copy /B /Y "%~2" "%~2.backup_%RANDOM%_%RANDOM%" >nul
+    if errorlevel 1 exit /b 1
+)
+copy /B /Y "%~1" "%~2" >nul
+if errorlevel 1 exit /b 1
+fc /B "%~1" "%~2" >nul
+if errorlevel 1 exit /b 1
+exit /b 0
 
 :BACKUP_CURRENT
 set "STAMP="
@@ -89,33 +107,46 @@ if errorlevel 1 exit /b 1
 exit /b 0
 
 :MISSING_SOURCE
-echo [HIBA] A "name - number copy.exe" nincs a telepito BAT mellett.
+echo [HIBA] A name - number copy.exe nincs a telepito mellett.
+goto :FAIL
+:MISSING_SCRIPTS
+echo [HIBA] A bongeszo-beallito .ps1 fajlok hianyoznak. A TELJES ZIP-et csomagold ki.
 goto :FAIL
 :INVALID_DIR
-echo [HIBA] Nem ervenyes telepitesi utvonal.
+echo [HIBA] Ervenytelen telepitesi utvonal.
 goto :FAIL
 :CREATE_DIR_FAIL
-echo [HIBA] A celmappa nem erheto el es nem hozhato letre.
+echo [HIBA] Nem sikerult a celmappat letrehozni.
 goto :FAIL
 :BACKUP_FAIL
-echo [HIBA] A biztonsagi mentes nem sikerult; az eredeti EXE valtozatlan.
+echo [HIBA] A regi EXE biztonsagi mentese sikertelen. Nincs feluliras.
 goto :FAIL
 :COPY_FAIL
-echo [HIBA] Nem sikerult az uj EXE-t a celmappaba masolni.
+echo [HIBA] Az uj EXE masolasa sikertelen.
 goto :CLEAN_STAGE
 :MOVE_FAIL
-echo [HIBA] Nem sikerult az EXE csereje. Zarj be minden futo masolot.
+echo [HIBA] Az uj EXE csereje sikertelen. Zarj be minden futo masolot.
 goto :CLEAN_STAGE
 :VERIFY_FAIL
-echo [HIBA] A fajlmeret-ellenorzes nem sikerult. Ellenorizd a celmappat.
+echo [HIBA] A telepitett EXE merete nem egyezik a forrassal.
+goto :FAIL
+:SCRIPT_FAIL
+echo [HIBA] A bongeszoindito scriptek masolasa vagy ellenorzese sikertelen.
+goto :FAIL
+:BROWSER_FAIL
+echo [HIBA] A bongeszo beallitasa/ellenorzese sikertelen. A telepites NEM teljes.
+echo [INFO] A korabbi EXE mentesbol visszaallithato; a normal bongeszo-beallitasok valtozatlanok.
 goto :FAIL
 :CLEAN_STAGE
 if defined STAGING if exist "%STAGING%" del /F /Q "%STAGING%" >nul 2>&1
 goto :FAIL
-:SAME_FILE
-echo [OK] Az EXE mar a kivalasztott helyen van. Nem kellett masolni.
-goto :SUCCESS
 :SUCCESS
+echo.
+echo [OK] Masoloprogram es bongeszo beallitva.
+echo [OK] EXE: "%TARGET%"
+if defined BACKUP_CREATED echo [OK] Regi EXE mentese: "%BACKUP_CREATED%"
+echo [INFO] A beallitott bongeszo minden Windows-bejelentkezeskor elindul.
+echo [INFO] Az OpenCart - Brave/Chrome ikonok az Asztalon es a Start menuben talalhatok.
 if "%INTERACTIVE%"=="1" pause
 endlocal & exit /b 0
 :FAIL

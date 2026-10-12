@@ -22,3 +22,14 @@
 - **Állapot:** `go test` és Windows x64 keresztfordítás sikeres. Valós Windows/Illustrator teszt még hátravan.
 - **Forrás:** a felhasználótól kapott hibás EXE működéséből rekonstruált Go implementáció. Nem tekinthető az eredeti program bitazonos helyreállításának.
 - **Telepítés:** `D:\3d lámpa\Photoshop és Illustrator scriptek`; régi EXE mentése.
+
+## 2026-10-12 - v1.1.0-rc.1 (bongeszobeallitas a telepitovel, elo tesztre var)
+
+- A telepito automatikusan megkeresi a telepitett Brave es/vagy Google Chrome EXE-ket a Windows regisztracioban es a szabvanyos telepitesi mappakban.
+- A Brave 9222, Chrome 9223 CDP portot kap; a Windows alapertelmezett bongeszojet preferalja, amennyiben a ketto kozul valamelyik.
+- Kulon, tartos CDP-profilokat keszit. A korabban letrehozott `OpenCartBraveDebug\\User Data` es `OpenCartChromeDebug\\User Data` profilokat, ha vannak, ujrafelhasznalja.
+- Az Asztalra es a Start menube bongeszoindito parancsikon kerul, a Windows-bejelentkezeskor automatikusan elindul az elsoleges CDP-bongeszo.
+- A normál bongeszoprofilt, taskbar-pint, alapertelmezett bongeszobeallitasokat es a mar megnyitott bolti fiokadatokat nem modositja.
+- A telepites csak akkor sikeres, ha a Brave/Chrome beallitas is sikerult, a debug kapcsolat elerheto, es a segedscriptek ellenorzese sikeres.
+- Uj Windows integracios tesztek: ket bongeszo, portok, parancsikonok, felhasznaloi autostart, ujratelepitesi backupok, azonos celmappa, ervenytelen bongeszo es CRLF.
+- A valos Brave/Chrome profil elso inditasa es a Windows-alapertelmezett ikonok kezelese felhasznaloi tesztelesre var. A v1.0.3 kiadas valtozatlan.
