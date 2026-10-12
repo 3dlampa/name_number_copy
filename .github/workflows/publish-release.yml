@@ -1,20 +1,17 @@
-name: Publish standalone EXE and full installer ZIP
+name: Publish version-matched standalone EXE and full installer ZIP
+
 on:
   push:
     branches: [main]
     paths:
-      - '.github/workflows/publish-release.yml'
+      - VERSION
   workflow_dispatch:
     inputs:
-      tag:
-        description: 'New, unused version tag (example: v1.1.0)'
-        required: true
-        type: string
       stable:
-        description: 'Promote as latest stable only after actual user confirmation'
-        required: true
-        default: false
+        description: 'Stable only after user has verified actual operation'
         type: boolean
+        required: false
+        default: false
 
 permissions:
   contents: write
@@ -27,76 +24,108 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: '1.23'
-      - name: Verify all Go tests
+      - name: Verify VERSION and PATCH increment
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REQUESTED_STABLE: ${{ inputs.stable }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $tag = (Get-Content -Raw -LiteralPath VERSION).Trim()
+          $m = [regex]::Match($tag, '^v([0-9]+)\.([0-9]+)\.([0-9]+)(?:-rc\.([0-9]+))?$')
+          if (-not $m.Success) { throw "Invalid VERSION: $tag" }
+          if ($env:REQUESTED_STABLE -eq 'true' -and $tag.Contains('-rc.')) {
+            throw 'An RC build cannot be promoted as stable without a new explicitly verified stable version.'
+          }
+          $oldReleases = @(gh release list --json tagName --limit 100 | ConvertFrom-Json)
+          if ($LASTEXITCODE -ne 0) { throw 'Cannot read existing GitHub releases' }
+          if (@($oldReleases | Where-Object tagName -EQ $tag).Count -ne 0) {
+            throw "Release $tag already exists; never overwrite an earlier backup."
+          }
+          $major = [int]$m.Groups[1].Value
+          $minor = [int]$m.Groups[2].Value
+          $patch = [int]$m.Groups[3].Value
+          $previousPatches = @()
+          foreach ($old in $oldReleases) {
+            $match = [regex]::Match([string]$old.tagName, '^v([0-9]+)\.([0-9]+)\.([0-9]+)(?:-rc\.[0-9]+)?$')
+            if ($match.Success -and [int]$match.Groups[1].Value -eq $major -and [int]$match.Groups[2].Value -eq $minor) {
+              $previousPatches += [int]$match.Groups[3].Value
+            }
+          }
+          if ($previousPatches.Count -gt 0) {
+            $expected = ($previousPatches | Measure-Object -Maximum).Maximum + 1
+            if ($patch -ne $expected) {
+              throw "PATCH must increment by exactly 1: expected v$major.$minor.$expected, got $tag"
+            }
+          }
+          "RELEASE_TAG=$tag" >> $env:GITHUB_ENV
+          "RELEASE_ZIP=name_number_copy_full_$tag.zip" >> $env:GITHUB_ENV
+          Write-Host "Checked release version: $tag"
+      - name: Verify all Go tests including embedded version
         shell: pwsh
         run: go test -count=1 ./...
       - name: Build standalone Windows GUI EXE
         shell: pwsh
         run: go build -trimpath -ldflags '-H windowsgui -s -w' -o 'name - number copy.exe' .
-      - name: Test installer and automatic browser configuration on Windows
+      - name: Test browser setup and Windows installer
         shell: pwsh
         run: ./tests/test_installer_windows.ps1
-      - name: Assemble and validate full ZIP
+      - name: Assemble and verify full ZIP
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
           New-Item -ItemType Directory -Force -Path 'package/source/.github/workflows', 'package/source/tests' | Out-Null
-          foreach ($f in @('name - number copy.exe','telepites.bat','setup_browser.ps1','start_opencart_browser.ps1')) {
+          foreach ($f in @('name - number copy.exe','telepites.bat','setup_browser.ps1','start_opencart_browser.ps1','VERSION')) {
             Copy-Item -LiteralPath $f -Destination 'package'
           }
-          foreach ($f in @('main.go','main_test.go','platform_windows.go','platform_other.go','go.mod','README.md','CHANGELOG.md','.gitignore')) {
-            Copy-Item -LiteralPath $f -Destination 'package/source'
-          }
-          foreach ($f in @('setup_browser.ps1','start_opencart_browser.ps1','telepites.bat')) {
+          foreach ($f in @('main.go','main_test.go','version_test.go','platform_windows.go','platform_other.go','go.mod','README.md','CHANGELOG.md','VERSION','.gitignore','setup_browser.ps1','start_opencart_browser.ps1','telepites.bat')) {
             Copy-Item -LiteralPath $f -Destination 'package/source'
           }
           Copy-Item -Path '.github/workflows/*.yml' -Destination 'package/source/.github/workflows/'
           Copy-Item -LiteralPath 'tests/test_installer_windows.ps1' -Destination 'package/source/tests'
-          $zip = 'name_number_copy_full_v1.1.0_rc1.zip'
-          Compress-Archive -Path 'package/*' -DestinationPath $zip -CompressionLevel Optimal -Force
-          Expand-Archive -LiteralPath $zip -DestinationPath 'release-verify' -Force
-          foreach ($f in @('name - number copy.exe','telepites.bat','setup_browser.ps1','start_opencart_browser.ps1','source/main.go','source/README.md')) {
+          Compress-Archive -Path 'package/*' -DestinationPath $env:RELEASE_ZIP -CompressionLevel Optimal -Force
+          Expand-Archive -LiteralPath $env:RELEASE_ZIP -DestinationPath 'release-verify' -Force
+          foreach ($f in @('name - number copy.exe','telepites.bat','setup_browser.ps1','start_opencart_browser.ps1','VERSION','source/main.go','source/README.md','source/VERSION','source/version_test.go')) {
             if (-not (Test-Path -LiteralPath (Join-Path 'release-verify' $f) -PathType Leaf)) { throw "ZIP missing $f" }
           }
-          if ((Get-FileHash -LiteralPath 'name - number copy.exe' -Algorithm SHA256).Hash -ne (Get-FileHash -LiteralPath 'release-verify/name - number copy.exe' -Algorithm SHA256).Hash) {
-            throw 'Standalone EXE and ZIP EXE SHA mismatch'
-          }
+          $zipTag = (Get-Content -Raw 'release-verify/VERSION').Trim()
+          $sourceTag = (Get-Content -Raw 'release-verify/source/VERSION').Trim()
+          if ($zipTag -ne $env:RELEASE_TAG -or $sourceTag -ne $env:RELEASE_TAG) { throw 'EXE source and ZIP versions mismatch' }
+          if ((Get-FileHash -LiteralPath 'name - number copy.exe' -Algorithm SHA256).Hash -ne (Get-FileHash -LiteralPath 'release-verify/name - number copy.exe' -Algorithm SHA256).Hash) { throw 'Standalone EXE and ZIP EXE hashes differ' }
           $bat = [IO.File]::ReadAllText((Resolve-Path 'release-verify/telepites.bat'))
-          if ($bat -match '(?<!\r)\n') { throw 'Installer BAT has LF-only lines' }
-          Write-Host 'Full ZIP validated.'
-      - name: Publish immutable versioned Release
+          if ($bat -match '(?<!\r)\n') { throw 'Installer BAT has non-Windows newlines' }
+          Write-Host "Version-matched EXE, ZIP and installer verified: $env:RELEASE_TAG"
+      - name: Publish immutable Release with matching version
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
-          REQUESTED_TAG: ${{ inputs.tag }}
           REQUESTED_STABLE: ${{ inputs.stable }}
         run: |
           $ErrorActionPreference = 'Stop'
-          $tag = if ($env:REQUESTED_TAG) { $env:REQUESTED_TAG } else { 'v1.1.0-rc.1' }
-          $stable = $env:REQUESTED_STABLE -eq 'true'
-          if ($tag -notmatch '^v[0-9]+\.[0-9]+\.[0-9]+(?:-rc\.[0-9]+)?$') { throw "Invalid tag: $tag" }
+          $tag = $env:RELEASE_TAG
+          $zip = $env:RELEASE_ZIP
           gh release view $tag --json tagName *> $null
-          if ($LASTEXITCODE -eq 0) { throw "Release $tag already exists. Existing stable backup must never be overwritten." }
-          $notes = @'
-          ## Név és rendelésszám másoló
-          
-          - Külön standalone Windows EXE és teljes telepítő ZIP, a forráskóddal és tesztekkel.
-          - Az EXE rendelésválasztója és vágólap-funkciója a felhasználó által ellenőrzött v1.0.3 programból származik.
-          - A telepítő automatikusan felderíti a Brave/Chrome telepítéseket, beállítja a Brave 9222 / Chrome 9223 CDP portot, és külön munkaprofilokat készít.
-          - A kiválasztott böngésző a Windows-bejelentkezéskor automatikusan elindul; az Asztalon és a Start menüben külön OpenCart-böngészőparancsikonok jönnek létre.
-          - A normál böngészőprofilok, a tálcán lévő ikonok és a Windows alapértelmezett böngészője nem változik.
-          - A telepítés megőrzi a korábbi EXE-t és konfigurációkat; támogatja a szabadon választott célmappát.
-          - **RC-kiadás:** valós Brave/Chrome-alapú telepítés és Illustrator-alatti tesztelés még hátravan. A korábbi v1.0.3 stabil kiadás megőrizve.
-          '@
+          if ($LASTEXITCODE -eq 0) { throw "Release $tag already exists; refusing overwrite." }
+          $notes = @"
+          ## Név és rendelésszám másoló $tag
+
+          - A program, VERSION, Release tag és a teljes ZIP verziója azonos: $tag
+          - Standalone Windows EXE és teljes telepítő ZIP, a forrással és tesztekkel.
+          - 1 rendelés: vágólapra másolás konzol és fókuszváltás nélkül.
+          - 2+ rendelés: számbillentyűs konzolválasztó.
+          - Automatikus Brave / Chrome észlelés, 9222 / 9223 port, dedikált CDP-profil, Start/Asztal/Windows indulási parancsikonok.
+          - Az előző, felhasználó által ellenőrzött v1.0.3 stabil változat megőrizve.
+          - Az RC-kiadás a böngészőtelepítés valós kipróbálásáig nem tekintendő stabilnak.
+          "@
           Set-Content -LiteralPath 'release-notes.md' -Value $notes -Encoding utf8
-          $args = @('release','create',$tag,'name - number copy.exe','name_number_copy_full_v1.1.0_rc1.zip', '--title',"Name number copy $tag",'--notes-file','release-notes.md','--target',$env:GITHUB_SHA)
-          if (-not $stable) { $args += '--prerelease' } else { $args += '--latest' }
+          $args = @('release','create',$tag,'name - number copy.exe',$zip,'--title',"Név és rendelésszám másoló $tag",'--notes-file','release-notes.md','--target',$env:GITHUB_SHA)
+          if ($env:REQUESTED_STABLE -eq 'true') { $args += '--latest' } else { $args += '--prerelease' }
           & gh @args
-          if ($LASTEXITCODE -ne 0) { throw 'GitHub Release creation failed' }
-          $published = gh release view $tag --json url,isPrerelease,assets | ConvertFrom-Json
-          if ($LASTEXITCODE -ne 0) { throw 'GitHub Release verification failed' }
+          if ($LASTEXITCODE -ne 0) { throw "Release creation failed: $tag" }
+          $published = gh release view $tag --json url,assets | ConvertFrom-Json
+          if ($LASTEXITCODE -ne 0) { throw 'Release verification failed' }
           $assets = @($published.assets | ForEach-Object { $_.name })
-          if ($assets.Count -ne 2 -or $assets -notcontains 'name_number_copy_full_v1.1.0_rc1.zip' -or ($assets | Where-Object { $_ -like '*.exe' }).Count -ne 1) {
-            throw 'Release is incomplete: standalone EXE and full ZIP were not both published'
+          if ($assets.Count -ne 2 -or $assets -notcontains $zip -or @($assets | Where-Object { $_ -like '*.exe' }).Count -ne 1) {
+            throw 'Release assets incomplete: standalone EXE and full ZIP are both required'
           }
-          Write-Host "Release available: $($published.url)"
+          Write-Host "Released version $tag at $($published.url)"

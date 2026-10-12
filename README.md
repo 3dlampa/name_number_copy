@@ -1,7 +1,7 @@
 # Név és rendelésszám vágólapra másoló
 
-**EXE-verzió:** 2026.10.12-choice-v1.0.2  
-**Telepítő:** 2026.10.12-choice-v1.0.3  
+**Aktuális kiadás (EXE és telepítő):** `v1.1.1-rc.1`  
+**Verzióforrás:** `VERSION` (az EXE-be beágyazva, a Release tag/ZIP ezt ellenőrzi)  
 **Platform:** Windows 11 x64  
 **Programfájl:** `name - number copy.exe`
 
@@ -73,3 +73,9 @@ A Chrome 136-tol `--remote-debugging-port` csak kulon `--user-data-dir` adatkota
 A debug-port kizarolag 127.0.0.1-hez kotodik, de a gepen futo mas helyi folyamatok technikailag hozzaferhetnek a CDP-hez, ezert a kulon bongeszo-profilban csak a szukseges munkat vegezd. Sikertelen bongeszo-felderites vagy portellenorzes eseten a telepites NEM jelez sikert. A korabbi EXE es a fajlkonfiguraciok mentesei megmaradnak.
 
 **Biztonsagi statusz:** a korabbi ellenorzott v1.0.3 Release valtozatlanul elerheto; a v1.1.0-rc.1 elozetes, Windows/Illustrator gyakorlati tesztre var.
+
+## Kiadások verziózási szabálya
+
+**Mindig csak a harmadik (PATCH) számot növeljük eggyel:** `1.3.1 → 1.3.2`, `1.1.0 → 1.1.1`. A major/minor számot automatikusan nem módosítjuk. Tesztkiadás esetén az `-rc.1` utótag az állapotot jelenti; nem helyettesíti a harmadik szám emelését.
+
+Az EXE, a `VERSION` fájl, a kiadási Git-tag, a Release címe, a ZIP neve és a Notion változásnaplója ugyanazt a verziót kell hogy tartalmazza. A GitHub Actions publikálás előtt ellenőrzi a korábbi kiadásokhoz képest az egylépéses patch növelést, a beágyazott Go-verziót, a telepítőt, a ZIP-t és a standalone EXE-t. A korábbi stabil Release változatlan, az RC külön kiadás.

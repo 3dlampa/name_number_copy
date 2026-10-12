@@ -1,6 +1,7 @@
 package main
 
 import (
+	_ "embed"
 	"bufio"
 	"bytes"
 	"context"
@@ -27,7 +28,11 @@ import (
 // 2026-10-12: A korábbi, konzol nélküli Go EXE működésének rekonstruált kiadása.
 // Konzol kizárólag akkor nyílik, ha több KÜLÖNBÖZŐ rendelés közül kell választani.
 // Nem használ Python-t, nem aktiválja a böngészőfüleket.
-const appVersion = "2026.10.12-choice-v1.0.2"
+//go:embed VERSION
+var embeddedVersion string
+
+// Az EXE verziója a kiadás egységes VERSION fájljából származik.
+var appVersion = strings.TrimSpace(embeddedVersion)
 
 var ports = []string{"9222", "9223"} // Brave és egy második Chromium-alapú böngésző
 

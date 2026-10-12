@@ -1,3 +1,12 @@
+## 2026-10-12 - v1.1.1-rc.1 (egységes, kötelező patch-verziózás)
+
+- Az EXE beágyazott verzióját a `VERSION` fájl adja; a fixen beégetett régi verzió megszűnt.
+- Kötelező verzióléptetés: **csak a harmadik szám +1** (`1.3.1 → 1.3.2`); RC-jelölés külön, nem a PATCH helyett.
+- A GitHub Release, teljes ZIP, forráskód és tesztek a `VERSION` értékét használják, egyezésük automatikusan ellenőrzött.
+- A release pipeline nem engedi a már publikált release/tag felülírását és hibára fut, ha kimarad a patch-növelés.
+- A másoló és a böngésző-telepítő működése ezzel a módosítással nem változik.
+- v1.0.3 az utolsó felhasználó által stabilnak visszaigazolt változat, megőrizve; ez még RC.
+
 ## 2026-10-12 - Installer v1.0.3 (szabadon választható telepítési hely)
 
 - A `telepites.bat` már nem használ beégetett telepítési célmappát. Rákérdez a teljes útvonalra, Enterre a korábbi `D:\3d lámpa\Photoshop és Illustrator scriptek` az alapértelmezés.
