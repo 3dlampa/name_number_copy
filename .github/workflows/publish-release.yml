@@ -50,7 +50,7 @@ jobs:
           foreach ($f in @('setup_browser.ps1','start_opencart_browser.ps1','telepites.bat')) {
             Copy-Item -LiteralPath $f -Destination 'package/source'
           }
-          Copy-Item -LiteralPath '.github/workflows/*' -Destination 'package/source/.github/workflows/'
+          Copy-Item -Path '.github/workflows/*.yml' -Destination 'package/source/.github/workflows/'
           Copy-Item -LiteralPath 'tests/test_installer_windows.ps1' -Destination 'package/source/tests'
           $zip = 'name_number_copy_full_v1.1.0_rc1.zip'
           Compress-Archive -Path 'package/*' -DestinationPath $zip -CompressionLevel Optimal -Force
