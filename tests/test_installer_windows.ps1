@@ -97,6 +97,62 @@ try {
     if (-not $didFail) { throw 'No-browser setup did not fail' }
     if (Test-Path -LiteralPath $missingUser) { throw 'No-browser path was mutated' }
 
+    # Regression: a gepi ikonok letrehozasa ONMAGABAN soha nem sikeres CDP.
+    $installerCode = Get-Content -LiteralPath $batPath -Raw -Encoding UTF8
+    if ($installerCode -notmatch 'goto :VERIFY_BROWSER' -or
+        $installerCode -notmatch ':MACHINE_STAGE_SUCCESS' -or
+        $installerCode -notmatch 'start_opencart_browser.ps1.*-Browser Auto') {
+        throw 'Installer does not verify a real current-user CDP connection after UAC'
+    }
+
+    $starter = Join-Path $destDir 'start_opencart_browser.ps1'
+    $fakeProfile = Join-Path $runnerRoot 'FakeLoggedInUser'
+    New-Item -ItemType Directory -Force -Path $fakeProfile | Out-Null
+    # No browser port: check-only must FAIL, not report a false installation success.
+    & "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -ExecutionPolicy Bypass -File $starter -Browser Brave -CheckOnly -TestUserRoot $fakeProfile *> $null
+    if ($LASTEXITCODE -eq 0) { throw 'Browser launcher accepted a missing CDP endpoint' }
+
+    # Mock CDP endpoint returns /json/version and /json/list, testing the SAME
+    # conditions that the installer verifies after normal-user startup.
+    $server = Start-Job -ScriptBlock {
+        $tcp = [System.Net.Sockets.TcpListener]::new([Net.IPAddress]::Loopback, 9222)
+        $tcp.Start()
+        try {
+            # A ket CDP kerest kiszolgaljuk, utana a tesztszerver MAGATOL kilep.
+            # Ne tartsunk nyitva vegtelen blokkolt AcceptTcpClient folyamatot.
+            for ($requestIndex=0; $requestIndex -lt 2; $requestIndex++) {
+                $client = $tcp.AcceptTcpClient()
+                try {
+                    $client.ReceiveTimeout = 5000
+                    $stream = $client.GetStream()
+                    $data = New-Object byte[] 8192
+                    $count = $stream.Read($data,0,$data.Length)
+                    $req = [Text.Encoding]::ASCII.GetString($data,0,$count)
+                    $body = if ($req -match '/json/version') {
+                        '{"Browser":"Brave/test","webSocketDebuggerUrl":"ws://127.0.0.1:9222/devtools/browser/1"}'
+                    } else { '[]' }
+                    $payload = [Text.Encoding]::UTF8.GetBytes($body)
+                    $CRLF = [string][char]13 + [char]10
+                    $head = [Text.Encoding]::ASCII.GetBytes("HTTP/1.1 200 OK" + $CRLF + "Content-Type: application/json" + $CRLF + "Content-Length: $($payload.Length)" + $CRLF + "Connection: close" + $CRLF + $CRLF)
+                    $stream.Write($head,0,$head.Length)
+                    $stream.Write($payload,0,$payload.Length)
+                    $stream.Flush()
+                } finally {
+                    $client.Close()
+                }
+            }
+        } finally { $tcp.Stop() }
+    }
+    try {
+        Start-Sleep -Seconds 2
+        & "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -ExecutionPolicy Bypass -File $starter -Browser Brave -CheckOnly -TestUserRoot $fakeProfile
+        if ($LASTEXITCODE -ne 0) { throw 'CDP live-port verification rejected a valid port' }
+    } finally {
+        Stop-Job $server -ErrorAction SilentlyContinue
+        Remove-Job $server -Force -ErrorAction SilentlyContinue
+    }
+    Write-Host 'PASS: missing-CDP error + mock healthy-CDP success; current-user launcher path verified.'
+
     Write-Host 'PASS: all-user common shortcuts/startup, Brave/Chrome/Edge, Edge-only virgin Win11, per-user profile at runtime, backups, hash, no-browser STOP, same-path, Unicode, CRLF.'
 } finally {
     Remove-Item Env:NNC_TEST_SKIP_LAUNCH -ErrorAction SilentlyContinue

@@ -1,3 +1,12 @@
+## 2026-10-12 – v1.1.5-rc.1 (telepítő: tényleges CDP-ellenőrzés)
+
+- Gyökérok: a másoló az új gépen települt, de egyik böngészőfolyamat sem rendelkezett debugporttal; a telepítő mégis sikert jelzett.
+- A rendszergazdai telepítés után a normál felhasználó automatikusan elindítja a választott böngészőt, majd a 9222/9223 CDP-végpontokat élesben ellenőrzi.
+- Hiba esetén STOP, látható hibaüzenet és napló a TEMP mappában; nincs több hamis sikerüzenet.
+- Javítva: az admin telepítő és a normál felhasználói ellenőrzés határa, és a telepítési útvonal továbbadása UAC után.
+- Automatikus Windows ellenőrzés egészül ki: hiányzó CDP esetén kötelező hiba; válaszoló mock CDP esetén siker.
+- Az EXE másolási/névkinyerési logikája nem változott. A korábbi stabil v1.1.4 és az előzetes kiadások megmaradnak.
+
 ## 2026-10-12 - v1.1.4 (stabil kiadás, RC-jelölés nélkül)
 
 - A felhasználó megerősítette, hogy a v1.1.3-rc.1 több webshopos rendelésválasztója, névfelismerése és másolója saját gépén megfelelően működik (köztük 3dlampa.ro #191).

@@ -14,22 +14,6 @@ set "INTERACTIVE=1"
 set "INSTALL_DIR="
 set "BACKUP_CREATED="
 
-rem Gepszintu (osszes felhasznalos) telepites: egyetlen UAC kerdes, ha kell.
-rem CI teszt idejen nincs valodi CommonStartup-modositas.
-if "%NNC_TEST_SKIP_LAUNCH%"=="1" goto :NO_ELEVATE
-fltmc >nul 2>&1
-if not errorlevel 1 goto :NO_ELEVATE
-echo [INFO] A gep osszes felhasznalojahoz rendszergazdai engedely szukseges.
-echo [INFO] A Windows most EGYSZER engedelyt ker a telepiteshez.
-if "%~1"=="" (
-    powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "$p=Start-Process -FilePath '%~f0' -Verb RunAs -Wait -PassThru; exit $p.ExitCode"
-) else (
-    powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "$p=Start-Process -FilePath '%~f0' -ArgumentList '""%~1""' -Verb RunAs -Wait -PassThru; exit $p.ExitCode"
-)
-if errorlevel 1 goto :ELEVATION_FAIL
-endlocal & exit /b 0
-:NO_ELEVATE
-
 if not exist "%SOURCE%" goto :MISSING_SOURCE
 if not exist "%SCRIPT_SETUP%" goto :MISSING_SCRIPTS
 if not exist "%SCRIPT_START%" goto :MISSING_SCRIPTS
@@ -67,6 +51,20 @@ echo Celmappa: "%INSTALL_DIR%"
 echo.
 rem A mar letezo mappa NEM hiba: udvariasan megerositest kerunk.
 if "%INTERACTIVE%"=="0" goto :CONFIRMED
+rem Elobb a felhasznalo kivalasztotta a celmappat.
+rem A gepszintu telepites admin gyerekben fut, a CDP teszt viszont
+rem UTANA a telepitot indito NEM emelt jogosultsagu felhasznalonal.
+if "%NNC_TEST_SKIP_LAUNCH%"=="1" goto :INSTALL_FILES
+fltmc >nul 2>&1
+if not errorlevel 1 goto :INSTALL_FILES
+echo [INFO] Egy Windows UAC engedely kell a kozos inditoikonok telepitesehez.
+set "NNC_INSTALLER_SELF=%~f0"
+set "NNC_INSTALLER_DEST=%INSTALL_DIR%"
+powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "$p=Start-Process -FilePath $env:NNC_INSTALLER_SELF -ArgumentList ([char]34 + $env:NNC_INSTALLER_DEST + [char]34 + ' /elevated-child') -Verb RunAs -Wait -PassThru; exit $p.ExitCode"
+if errorlevel 1 goto :ELEVATION_FAIL
+goto :VERIFY_BROWSER
+
+:INSTALL_FILES
 if exist "%TARGET%" goto :ASK_UPDATE
 if exist "%INSTALL_DIR%\" goto :ASK_FOLDER
 goto :CONFIRMED
@@ -110,12 +108,39 @@ rem A tesztparameterek kizarolag a CI tesztkornyezetben aktivak.
 if "%NNC_TEST_SKIP_LAUNCH%"=="1" goto :SETUP_TEST
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%INSTALL_DIR%\setup_browser.ps1" -InstallDir "%INSTALL_DIR%"
 if errorlevel 1 goto :BROWSER_FAIL
-goto :SUCCESS
+if /I "%~2"=="/elevated-child" goto :MACHINE_STAGE_SUCCESS
+goto :VERIFY_ADMIN
+
+:MACHINE_STAGE_SUCCESS
+echo [OK] Gepszintu telepites sikeres. Normal felhasznaloi CDP teszt folytatodik.
+endlocal & exit /b 0
 
 :SETUP_TEST
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%INSTALL_DIR%\setup_browser.ps1" -InstallDir "%INSTALL_DIR%" -BravePath "%NNC_TEST_BRAVE_PATH%" -ChromePath "%NNC_TEST_CHROME_PATH%" -EdgePath "%NNC_TEST_EDGE_PATH%" -TestRoot "%NNC_TEST_ROOT%" -SkipLaunch
 if errorlevel 1 goto :BROWSER_FAIL
 goto :SUCCESS
+
+:VERIFY_BROWSER
+echo [INFO] Valodi bongeszoinditas NORMAL felhasznalokent es CDP teszt...
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%INSTALL_DIR%\start_opencart_browser.ps1" -Browser Auto
+if errorlevel 1 goto :BROWSER_FAIL
+echo [OK] CDP 9222/9223 bongeszo kapcsolat valoban ellenorizve.
+goto :SUCCESS
+
+:VERIFY_ADMIN
+rem A BAT-ot mar adminisztratorkent inditottak. A bongeszot nem
+rem nyithatjuk meg emelt jogosultsagokkal. Ellenorizzuk a MEGLEVO CDP-t.
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%INSTALL_DIR%\start_opencart_browser.ps1" -Browser Auto -CheckOnly
+if errorlevel 1 goto :NEED_NORMAL_LAUNCH
+echo [OK] A CDP mar fut es elerheto.
+goto :SUCCESS
+
+:NEED_NORMAL_LAUNCH
+echo [HIBA] A gepi fajlok felkerultek, de a CDP inditasa meg NEM ellenorzott.
+echo [INFO] A BAT-ot NORMAL dupla kattintassal futtasd, ne jobb klikk/Run as admin.
+echo [INFO] A telepito magatol ker majd UAC engedelyt, es normal
+echo [INFO] felhasznalokent ellenorzi a bongeszo valodi mukodeset.
+goto :FAIL
 
 :COPY_SCRIPT
 rem Nem irjuk felul ugyanazzal az utvonallal sajat magat.
@@ -175,15 +200,20 @@ goto :FAIL
 echo [HIBA] A bongeszoindito scriptek masolasa vagy ellenorzese sikertelen.
 goto :FAIL
 :BROWSER_FAIL
-echo [HIBA] A bongeszo beallitasa/ellenorzese sikertelen. A telepites NEM teljes.
-echo [INFO] A korabbi EXE mentesbol visszaallithato; a normal bongeszo-beallitasok valtozatlanok.
+echo [HIBA] A bongeszo/CDP beallitasa NEM mukodik; a telepites nem sikeres.
+echo [INFO] Reszletes naplo: %%TEMP%%\name_number_copy_browser.log
+echo [INFO] A regi EXE biztonsagi mentese megmarad.
 goto :FAIL
 :CLEAN_STAGE
 if defined STAGING if exist "%STAGING%" del /F /Q "%STAGING%" >nul 2>&1
 goto :FAIL
 :SUCCESS
 echo.
-echo [OK] Masoloprogram es bongeszo beallitva.
+if "%NNC_TEST_SKIP_LAUNCH%"=="1" (
+  echo [OK] CI teszt: telepito es bongeszo-parancsikonok tesztelve.
+) else (
+  echo [OK] Masoloprogram es bongeszo beallitva, a CDP kapcsolat ELLENORIZVE.
+)
 echo [OK] EXE: "%TARGET%"
 if defined BACKUP_CREATED echo [OK] Regi EXE mentese: "%BACKUP_CREATED%"
 echo [INFO] A gep MINDEN Windows-felhasznalojanal automatikusan indul a beallitott bongeszo.

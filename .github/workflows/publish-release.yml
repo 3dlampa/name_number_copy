@@ -132,6 +132,7 @@ jobs:
           - Román vevőadat-fejlécek, Nume/Prenume és célzott ügyfélblokkbeli névfelismerés javítva, HU/EN/SK/CZ regressziós tesztekkel.
           - Automatikus Brave / Chrome / Edge észlelés, 9222 / 9223 port, dedikált CDP-profil, Start/Asztal/Windows indulási parancsikonok.
           - A felhasználó a többnyelvű rendelésválasztót és névkiolvasást ellenőrizte saját gépén.
+          - Az új telepítő a normál felhasználói kontextusban valódi CDP-elérést ellenőriz; hiba esetén nem ad sikeres telepítést.
           - A másik Windows-gépes telepítés ellenőrzése még hátravan; a korábbi stabil és RC mentések megmaradnak.
           "@
           Set-Content -LiteralPath 'release-notes.md' -Value $notes -Encoding utf8

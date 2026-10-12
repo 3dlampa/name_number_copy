@@ -1,6 +1,6 @@
 # Név és rendelésszám vágólapra másoló
 
-**Aktuális kiadás (EXE és telepítő):** `v1.1.4`  
+**Aktuális kiadás (EXE és telepítő):** `v1.1.5-rc.1`  
 **Verzióforrás:** `VERSION` (az EXE-be beágyazva, a Release tag/ZIP ezt ellenőrzi)  
 **Platform:** Windows 11 x64  
 **Programfájl:** `name - number copy.exe`
@@ -112,3 +112,18 @@ Az EXE, a `VERSION` fájl, a kiadási Git-tag, a Release címe, a ZIP neve és a
 - A következő PATCH-verzió `v1.1.4`, külön GitHub Release, EXE és teljes telepítő ZIP, a kiadási fájlba is beágyazott azonos verzióval.
 - A kiadási pipeline a `VERSION` fájl `-rc.` utótagjából automatikusan dönt: RC esetén prerelease, utótag nélkül stabil / latest. Korábbi Release-eket **nem ír felül**.
 - A **másik Windows-gépes telepítési teszt még hátravan**; ez nem módosítja a felhasználó saját gépén már igazolt névfelismerést.
+
+
+## v1.1.5-rc.1 – telepítés csak bizonyított CDP-kapcsolattal
+
+- A telepítő **nem jelezhet sikert** csak azért, mert az EXE, a beállító JSON és az OpenCart parancsikonok létrejöttek.
+- A közös, minden felhasználónak szóló fájlokat továbbra is emelt jogosultsággal telepíti, de a **böngészőt a telepítőt indító normál Windows-felhasználó kontextusában** indítja, külön OpenCart-profillal.
+- Az UAC-gyerek telepítő lezárulta után elindítja a tényleges Brave/Chrome/Edge böngészőt, ellenőrzi a `/json/version` és `/json/list` végpontot a kiválasztott 9222/9223 porton, **csak ekkor sikeres**.
+- Hiba esetén nem sikeresnek jelzi, hanem olvasható hibaüzenet és `%TEMP%\name_number_copy_browser.log` napló keletkezik.
+- A böngésző kiválasztása elsősorban a telepítő `Primary` beállítását követi, de felismeri az aktuális felhasználó saját böngészőtelepítését is.
+- Az OpenCart normál és a dedikált debug-böngésző profilok nem kerülnek felülírásra. Ha már nyitott webböngésző fut, a CDP-s böngésző külön profilban indul.
+- Közvetlen rendszergazdai indításnál a telepítő biztonságból **nem indít megemelt jogú böngészőt**; ha nincs már ellenőrzött CDP, érthetően kéri a normál dupla kattintásos telepítőindítást.
+- A telepítőt továbbra is `telepites.bat` néven adjuk át. **Normál dupla kattintással** indítsd; maga intézi az UAC engedélyt.
+- A másoló EXE rendelésfelismerési, névkinyerési és fókuszkezelési logikája **változatlan**, a beágyazott PATCH-verziószám kivételével.
+- Ez előzetes RC kiadás, amíg a második, korábban hibás gépen nincs visszaellenőrizve.
+
