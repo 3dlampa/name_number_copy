@@ -1,3 +1,13 @@
+## 2026-10-12 - Installer v1.0.3 (szabadon választható telepítési hely)
+
+- A `telepites.bat` már nem használ beégetett telepítési célmappát. Rákérdez a teljes útvonalra, Enterre a korábbi `D:\3d lámpa\Photoshop és Illustrator scriptek` az alapértelmezés.
+- Elfogadja az idézőjeles elérési utakat, kezeli a szóközt és ékezeteket, szükség esetén létrehozza az új célmappát.
+- Meglévő cél-EXE esetén kötelező, dátumos mentést készít a felülírás előtt; sikertelen mentésnél nincs csere.
+- Átmeneti fájlba másol és csak azt követően cseréli a cél-EXE-t, majd méretet ellenőriz. Ha a forrás és cél azonos fájl, kihagyja a másolást.
+- Parancssori telepítés is lehetséges első célútvonal argumentummal, például `telepites.bat "E:\Scriptek"`.
+- A program EXE-je és a rendelésválasztó kódja változatlanul maradt a v1.0.2-höz képest.
+- Teszt: Windows Actions telepítőteszt, CRLF / UTF-8 és saját mappába telepítés (a Windows-teszt eredményét külön ellenőrizni kell).
+
 # Változásnapló
 
 ## 2026-10-12 - 2026.10.12-choice-v1.0.2
