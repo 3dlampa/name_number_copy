@@ -16,6 +16,9 @@ jobs:
       - name: Build Windows GUI EXE
         shell: pwsh
         run: go build -trimpath -ldflags '-H windowsgui -s -w' -o 'name - number copy.exe' .
+      - name: Verify user-selected installation path (Windows cmd)
+        shell: pwsh
+        run: ./tests/test_installer_windows.ps1
       - name: Upload EXE artifact
         uses: actions/upload-artifact@v4
         with:
