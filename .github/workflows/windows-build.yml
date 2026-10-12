@@ -11,77 +11,30 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: '1.23'
-      - name: Ensure changed code always increments PATCH
+      - name: Check PATCH increase on source changes
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
-          if (-not (Test-Path -LiteralPath VERSION)) { throw 'VERSION file missing' }
-          $current = (Get-Content -Raw VERSION).Trim()
-          if ($current -notmatch '^v[0-9]+\.[0-9]+\.[0-9]+(-rc\.[0-9]+)?
-      - name: Build Windows GUI EXE
-        shell: pwsh
-        run: go build -trimpath -ldflags '-H windowsgui -s -w' -o 'name - number copy.exe' .
-      - name: Browser discovery, login autostart, installer integration tests
-        shell: pwsh
-        run: ./tests/test_installer_windows.ps1
-      - name: Upload standalone EXE artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: name-number-copy-windows
-          path: name - number copy.exe
-          if-no-files-found: error) { throw "Invalid VERSION: $current" }
+          $current = (Get-Content -Raw -LiteralPath 'VERSION').Trim()
+          if ($current -notmatch '^v[0-9]+\.[0-9]+\.[0-9]+(-rc\.[0-9]+)?$') {
+            throw "Invalid VERSION: $current"
+          }
           $parent = git rev-parse 'HEAD^' 2>$null
           if ($LASTEXITCODE -eq 0) {
             $changed = @(git diff --name-only HEAD^ HEAD)
-            $meaningful = @($changed | Where-Object { $_ -match '^(.*\.go|.*\.ps1|.*\.bat)
-      - name: Build Windows GUI EXE
-        shell: pwsh
-        run: go build -trimpath -ldflags '-H windowsgui -s -w' -o 'name - number copy.exe' .
-      - name: Browser discovery, login autostart, installer integration tests
-        shell: pwsh
-        run: ./tests/test_installer_windows.ps1
-      - name: Upload standalone EXE artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: name-number-copy-windows
-          path: name - number copy.exe
-          if-no-files-found: error })
+            $meaningful = @($changed | Where-Object { $_ -match '^(.*\.go|.*\.ps1|.*\.bat)$' })
             $versionChanged = $changed -contains 'VERSION'
             if ($meaningful.Count -gt 0 -and -not $versionChanged) {
-              throw "Code or installer changed without VERSION patch increment."
+              throw 'Executable or installer changed without a VERSION patch bump.'
             }
             if ($versionChanged) {
               $previous = git show 'HEAD^:VERSION' 2>$null
               if ($LASTEXITCODE -eq 0) {
-                $old = [regex]::Match($previous.Trim(), '^v([0-9]+)\.([0-9]+)\.([0-9]+)(?:-rc\.[0-9]+)?
-      - name: Build Windows GUI EXE
-        shell: pwsh
-        run: go build -trimpath -ldflags '-H windowsgui -s -w' -o 'name - number copy.exe' .
-      - name: Browser discovery, login autostart, installer integration tests
-        shell: pwsh
-        run: ./tests/test_installer_windows.ps1
-      - name: Upload standalone EXE artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: name-number-copy-windows
-          path: name - number copy.exe
-          if-no-files-found: error)
-                $new = [regex]::Match($current, '^v([0-9]+)\.([0-9]+)\.([0-9]+)(?:-rc\.[0-9]+)?
-      - name: Build Windows GUI EXE
-        shell: pwsh
-        run: go build -trimpath -ldflags '-H windowsgui -s -w' -o 'name - number copy.exe' .
-      - name: Browser discovery, login autostart, installer integration tests
-        shell: pwsh
-        run: ./tests/test_installer_windows.ps1
-      - name: Upload standalone EXE artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: name-number-copy-windows
-          path: name - number copy.exe
-          if-no-files-found: error)
-                if ($old.Success -and $new.Success) {
-                  if ($old.Groups[1].Value -ne $new.Groups[1].Value -or $old.Groups[2].Value -ne $new.Groups[2].Value -or [int]$new.Groups[3].Value -ne ([int]$old.Groups[3].Value + 1)) {
-                    throw 'Only PATCH may increment and it must increase by exactly 1.'
+                $old = [regex]::Match($previous.Trim(), '^v([0-9]+)\.([0-9]+)\.([0-9]+)(?:-rc\.[0-9]+)?$')
+                $next = [regex]::Match($current, '^v([0-9]+)\.([0-9]+)\.([0-9]+)(?:-rc\.[0-9]+)?$')
+                if ($old.Success -and $next.Success) {
+                  if ($old.Groups[1].Value -ne $next.Groups[1].Value -or $old.Groups[2].Value -ne $next.Groups[2].Value -or [int]$next.Groups[3].Value -ne ([int]$old.Groups[3].Value + 1)) {
+                    throw 'PATCH must increase by exactly 1 while MAJOR/MINOR stay unchanged.'
                   }
                 }
               }
