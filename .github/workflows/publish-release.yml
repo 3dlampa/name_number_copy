@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - VERSION
+      - '.github/workflows/publish-release.yml'
   workflow_dispatch:
     inputs:
       stable:
@@ -21,6 +22,8 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: main
       - uses: actions/setup-go@v5
         with:
           go-version: '1.23'
@@ -95,6 +98,15 @@ jobs:
           $bat = [IO.File]::ReadAllText((Resolve-Path 'release-verify/telepites.bat'))
           if ($bat -match '(?<!\r)\n') { throw 'Installer BAT has non-Windows newlines' }
           Write-Host "Version-matched EXE, ZIP and installer verified: $env:RELEASE_TAG"
+      - name: Upload version-matched EXE and full ZIP as build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: name-number-copy-package-${{ github.run_number }}
+          path: |
+            name - number copy.exe
+            name_number_copy_full_*.zip
+          if-no-files-found: error
+          retention-days: 90
       - name: Publish immutable Release with matching version
         shell: pwsh
         env:
@@ -118,8 +130,15 @@ jobs:
           - Az RC-kiadás a böngészőtelepítés valós kipróbálásáig nem tekintendő stabilnak.
           "@
           Set-Content -LiteralPath 'release-notes.md' -Value $notes -Encoding utf8
-          $args = @('release','create',$tag,'name - number copy.exe',$zip,'--title',"Név és rendelésszám másoló $tag",'--notes-file','release-notes.md','--target',$env:GITHUB_SHA)
+          $args = @('release','create',$tag,'name - number copy.exe',$zip,'--title',"Név és rendelésszám másoló $tag",'--notes-file','release-notes.md','--target','main')
           if ($env:REQUESTED_STABLE -eq 'true') { $args += '--latest' } else { $args += '--prerelease' }
+          # The release must target the CURRENT default branch (not an outdated workflow commit).
+          # GitHub blocks GITHUB_TOKEN release creation when target differs in .github/workflows.
+          $branchHead = (gh api "repos/$env:GITHUB_REPOSITORY/commits/main" --jq .sha).Trim()
+          if ($LASTEXITCODE -ne 0) { throw 'Cannot resolve default branch head' }
+          if ($branchHead -ne $env:GITHUB_SHA) {
+            throw "Main advanced during build; refusing mismatched release. HEAD=$branchHead BUILT=$env:GITHUB_SHA"
+          }
           & gh @args
           if ($LASTEXITCODE -ne 0) { throw "Release creation failed: $tag" }
           $published = gh release view $tag --json url,assets | ConvertFrom-Json
