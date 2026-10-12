@@ -1,6 +1,7 @@
 # Név és rendelésszám vágólapra másoló
 
-**Verzió:** 2026.10.12-choice-v1.0.2  
+**EXE-verzió:** 2026.10.12-choice-v1.0.2  
+**Telepítő:** 2026.10.12-choice-v1.0.3  
 **Platform:** Windows 11 x64  
 **Programfájl:** `name - number copy.exe`
 
@@ -31,14 +32,18 @@ Az országkód a webshop domainjéből jön, nem a böngésző nyelvéből.
 
 ## Telepítés
 
-A célkönyvtár:
+Telepítéskor a `telepites.bat` **bekéri a telepítési mappát**. Az Enter lenyomására az alapértelmezett mappát használja:
 
 `D:\3d lámpa\Photoshop és Illustrator scriptek`
 
-1. Zárd be a korábban beragadt másoló EXE-t, ha még fut.
-2. Másold az új `name - number copy.exe` fájlt a fenti mappába a meglévő fájl helyére. A jelenlegi fájlról előtte készíts mentést.
-3. Alternatívaként futtasd az új, mellékelt `telepites.bat`-ot. Megőrzi a régi EXE-t időbélyeges `.backup_...` néven, majd a helyére másolja az újat. **Nem** használja a korábbi `C:\Scripts` célútvonalat, és nem telepít böngészőt.
-4. Teszteld egy és két különböző, nyitott rendelés mellett, lehetőleg aktív Illustrator ablakkal.
+Más mappa esetén egyszerűen gépeld be a teljes útvonalat, például `E:\Munka\Scriptek` (akár idézőjelek között is). Ha a célmappa még nem létezik, a telepítő megpróbálja létrehozni. Nem telepít automatikusan a `C:\Scripts` alá.
+
+1. Zárd be a régi másoló EXE-t, ha még fut.
+2. Csomagold ki a ZIP-et, és indítsd a `telepites.bat`-ot. A program EXE-fájlja a BAT mellett legyen.
+3. Válassz telepítési helyet. Meglévő EXE esetén a telepítő előbb időbélyeges `.backup_...` biztonsági mentést készít, majd cseréli a fájlt.
+4. Teszteld egy és két különböző nyitott rendelés mellett, lehetőleg aktív Illustrator ablakkal.
+
+Automatizált telepítéshez a célmappa első argumentumként is átadható: `telepites.bat "E:\Munka\Scriptek"`. Ez a mód nem kér billentyűbevitelt.
 
 **Fontos:** Ez a feltöltött hibás Go-alapú EXE működését reprodukáló/javító forrás, nem az eredeti elveszett forrásfájl visszafejtett, byte-pontos másolata. Mivel a Windows és az Illustrator nem érhető el a tesztkörnyezetben, a fókusz és a konzol valós viselkedését a felhasználó gépén is tesztelni kell. Hibák logja: `%TEMP%\name_number_copy_error.log`.
 
