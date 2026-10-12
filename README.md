@@ -1,6 +1,6 @@
 # Név és rendelésszám vágólapra másoló
 
-**Aktuális kiadás (EXE és telepítő):** `v1.1.2-rc.1`  
+**Aktuális kiadás (EXE és telepítő):** `v1.1.3-rc.1`  
 **Verzióforrás:** `VERSION` (az EXE-be beágyazva, a Release tag/ZIP ezt ellenőrzi)  
 **Platform:** Windows 11 x64  
 **Programfájl:** `name - number copy.exe`
@@ -93,3 +93,13 @@ Az EXE, a `VERSION` fájl, a kiadási Git-tag, a Release címe, a ZIP neve és a
 - Az OpenCart webshop-adminba történő bejelentkezést nem kerüli meg: új, elkülönített profilban szükség lehet az eredeti webshop-fiókkal történő bejelentkezésre; nincs extra, külön telepítőfiók.
 - **Korlát:** ha egy speciálisan módosított Windowsról az összes Chromium-alapú böngészőt eltávolították, internet nélküli telepítő nem tud új böngészőt előállítani. Ilyenkor pontos, érthető hiba jelenik meg, nem hamis sikerüzenet.
 - **Visszaállítás:** az ellenőrzött v1.0.3 stabil Release, a v1.1.0-rc.1 és v1.1.1-rc.1 próbaverziók érintetlenül megmaradnak.
+
+
+## v1.1.3-rc.1 - román ügyfélnév felismerése
+
+- A korábbi névkinyerő csak a magyar `Vásárló adatok` / `Vevő adatok` és angol `Customer details` / `Customer info` fejlécet ismerte. Emiatt a román `3dlampa.ro` oldalakon `[név nem olvasható]` jelenhetett meg.
+- Most felismeri többek közt a `Datele clientului`, `Detalii client`, `Informații despre client`, továbbá a szlovák/cseh ügyféladat-fejléceket is.
+- Először az ügyfélblokk DOM-jában keresi a megfelelő ügyfél-linket; különben kizárólag a fejléc utáni neveket és `Nume/Prenume` mezőket vizsgálja, majd használja a régi szöveges tartalékot.
+- A név- és rendelésszám-választó, fókuszkezelés, SOS, HU/RO/SK/CZ prefix, böngészőbeállítás és telepítő változatlan.
+- Automatikus JavaScript névkinyerési tesztek a tényleges Go-EXE-be beágyazott kódról (román, magyar, szlovák, cseh, angol, SOS).
+- Éles `RO 191` rendeléshez nem férünk hozzá, így a valós böngészős tesztet a felhasználónak kell megerősítenie; addig előzetes RC.

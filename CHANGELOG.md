@@ -1,3 +1,12 @@
+## 2026-10-12 - v1.1.3-rc.1 (román vásárlói név helyreállítása)
+
+- Hibajavítás: a korábbi JS kizárólag HU/EN ügyféladat-fejléceket kezelt; a `3dlampa.ro` rendelésnél `[név nem olvasható]` lett az eredmény.
+- RO ügyféladat-fejlécek, `Nume/Prenume` mezők és célzott ügyfél-link DOM felismerés; SK/CZ fejlécek.
+- A korábbi magyar/angol nevek és az SOS forma megőrzése, célzott regressziós Node.js teszttel.
+- Másolóválasztó, Illustrator-fókusz, telepítő, WinCDP-beállítás változatlan.
+- Frissített teszt- és Release pipeline: a Node.js a kiadásnál magát a gyártási `extractorJS` stringet hajtja végre.
+- Patch +1 verzió: v1.1.2 -> v1.1.3, az összes korábbi Release és stabil v1.0.3 érintetlenül megmarad.
+
 ## 2026-10-12 - v1.1.2-rc.1 (gepszintu bongeszo-telepites, nem felhasznaloi mappa)
 
 - Javítva: 'Hiányzik egy Windows felhasználói mappa' hiba. Közös Public Desktop, Common Programs, Common Startup használatával, felhasználói mappáktól függetlenül.

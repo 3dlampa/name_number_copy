@@ -67,6 +67,9 @@ jobs:
       - name: Verify all Go tests including embedded version
         shell: pwsh
         run: go test -count=1 ./...
+      - name: Validate real order name extraction JavaScript (HU RO SK CZ EN)
+        shell: pwsh
+        run: node tests/order_name_cases.js
       - name: Build standalone Windows GUI EXE
         shell: pwsh
         run: go build -trimpath -ldflags '-H windowsgui -s -w' -o 'name - number copy.exe' .
@@ -86,9 +89,10 @@ jobs:
           }
           Copy-Item -Path '.github/workflows/*.yml' -Destination 'package/source/.github/workflows/'
           Copy-Item -LiteralPath 'tests/test_installer_windows.ps1' -Destination 'package/source/tests'
+          Copy-Item -LiteralPath 'tests/order_name_cases.js' -Destination 'package/source/tests'
           Compress-Archive -Path 'package/*' -DestinationPath $env:RELEASE_ZIP -CompressionLevel Optimal -Force
           Expand-Archive -LiteralPath $env:RELEASE_ZIP -DestinationPath 'release-verify' -Force
-          foreach ($f in @('name - number copy.exe','telepites.bat','setup_browser.ps1','start_opencart_browser.ps1','VERSION','source/main.go','source/README.md','source/VERSION','source/version_test.go')) {
+          foreach ($f in @('name - number copy.exe','telepites.bat','setup_browser.ps1','start_opencart_browser.ps1','VERSION','source/main.go','source/README.md','source/VERSION','source/version_test.go','source/tests/order_name_cases.js')) {
             if (-not (Test-Path -LiteralPath (Join-Path 'release-verify' $f) -PathType Leaf)) { throw "ZIP missing $f" }
           }
           $zipTag = (Get-Content -Raw 'release-verify/VERSION').Trim()
@@ -125,6 +129,7 @@ jobs:
           - Standalone Windows EXE és teljes telepítő ZIP, a forrással és tesztekkel.
           - 1 rendelés: vágólapra másolás konzol és fókuszváltás nélkül.
           - 2+ rendelés: számbillentyűs konzolválasztó.
+          - Román vevőadat-fejlécek, Nume/Prenume és célzott ügyfélblokkbeli névfelismerés javítva, HU/EN/SK/CZ regressziós tesztekkel.
           - Automatikus Brave / Chrome észlelés, 9222 / 9223 port, dedikált CDP-profil, Start/Asztal/Windows indulási parancsikonok.
           - Az előző, felhasználó által ellenőrzött v1.0.3 stabil változat megőrizve.
           - Az RC-kiadás a böngészőtelepítés valós kipróbálásáig nem tekintendő stabilnak.

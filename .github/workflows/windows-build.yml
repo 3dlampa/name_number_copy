@@ -44,6 +44,9 @@ jobs:
           }
       - name: Go tests
         run: go test -count=1 ./...
+      - name: Validate real order name extraction JavaScript (HU RO SK CZ EN)
+        shell: pwsh
+        run: node tests/order_name_cases.js
       - name: Build Windows GUI EXE
         shell: pwsh
         run: go build -trimpath -ldflags '-H windowsgui -s -w' -o 'name - number copy.exe' .

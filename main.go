@@ -38,19 +38,73 @@ var ports = []string{"9222", "9223"} // Brave és egy második Chromium-alapú b
 
 // A feltöltött eredeti EXE-ből azonosított Javascript kinyerő, szó szerint megtartva.
 const extractorJS = `(() => {
-  const clean = (s) => String(s || '').replace(/\s+/g, ' ').trim();
-  const text = clean(document.body ? (document.body.innerText || document.body.textContent || '') : '');
+  const clean = s => String(s || '').replace(/\s+/g, ' ').trim();
+  const raw = document.body ? String(document.body.innerText || document.body.textContent || '') : '';
+  const text = clean(raw);
+  const sos = /(^|[^A-Za-zÁÉÍÓÖŐÚÜŰáéíóöőúüű0-9])(?:SOS|S\.\s*O\.\s*S\.)(?=$|[^A-Za-zÁÉÍÓÖŐÚÜŰáéíóöőúüű0-9])/i.test(text);
+  // A magyar/angol felismerés megmarad; román, szlovák és cseh címsorokkal bővül.
+  const marker = /(?:Vásárló adatok|Vevő adatok|Customer details|Customer info|Customer information|Date(?:le)? client(?:ului)?|Detalii(?:le)? client(?:ului)?|Detalii despre client|Informa(?:ț|ţ|t)ii(?:le)? (?:despre )?client(?:ului)?|Date (?:cumpărător|cumparator)|Informácie o zákazníkovi|Údaje o zákazníkovi|Zákaznícke údaje|Informace o zákazníkovi|Údaje zákazníka)/i;
+  const stop = /(?:Magánszemély|Cég|E-mail|Email|Telefon|Telefón|Phone|Telephone|Lehetőségek|Opțiuni|Optiuni|Persoan(?:ă|a) fizic(?:ă|a)|Persoan(?:ă|a) juridic(?:ă|a)|Companie|Firma|Customer group|Adresa|Address|Facturare|Livrare|Doručenie|Doprava|Platba|Payment)/i;
+  const bad = /^(?:vevő|vásárló|ügyfél|customer(?: name)?|client(?:ul)?|nume(?:le)?(?: client(?:ului)?)?|prenume(?:le)?|nume și prenume|name|first ?name|last ?name|név|magánszemély|cég|email|e-mail|telefon|phone|persoană fizică|persoana fizica|persoană juridică|persoana juridica|opțiuni|optiuni|comanda|comandă|detalii(?: client)?|date(?:le)? client(?:ului)?|informații(?: client)?|informaţii(?: client)?|szerkesztés|edit|törlés|delete|megtekintés|view|rendelés|orders?)$/i;
+  function valid(input) {
+    const s = clean(input).replace(/^[\s\-–:]+|[\s\-–:]+$/g, '');
+    if (s.length < 3 || s.length > 140 || bad.test(s)) return '';
+    if (/[@<>\[\]{}]|https?:\/\/|www\./i.test(s)) return '';
+    if (/^\+?[0-9][0-9\s().-]+$/.test(s) || /^\d+$/.test(s)) return '';
+    if (/\b(?:telefon|email|e-mail|opțiuni|optiuni|customer group|persoană fizică|persoana fizica)\b/i.test(s)) return '';
+    return s;
+  }
+  const delabel = s => clean(s).replace(/^(?:Nume(?:le)?(?: client(?:ului)?)?|Prenume(?:le)?|Client(?:ul)?|Customer|Vevő|Vásárló|Name|Név)\s*[:：-]\s*/i, '');
+  const stops = new RegExp('\\s+(?:' + stop.source.slice(3, -1) + '|\\+\\d|[\\w.+-]+@[\\w.-]+)(?=\\s|$|[:.])', 'i');
   let name = '';
-  const m = /(?:Vásárló adatok|Vevő adatok|Customer details|Customer info)\s+(.+?)\s+(?:Magánszemély|Cég|E-mail|Email|Telefon|\+\d|Lehetőségek)/i.exec(text);
-  if (m && m[1]) name = clean(m[1]);
+
+  // Az ügyfélkártya saját linkje megbízhatóbb, mint a teljes oldal szövege.
+  const headings = document.body && document.body.querySelectorAll
+    ? document.body.querySelectorAll('.panel-heading, .card-header, .panel-title, h3, h4, legend') : [];
+  for (const heading of headings) {
+    if (!marker.test(clean(heading.innerText || heading.textContent || ''))) continue;
+    const panel = heading.closest ? heading.closest('.panel, .card, .box') : null;
+    if (!panel || !panel.querySelectorAll) continue;
+    const links = panel.querySelectorAll('a[href*="route=customer/customer"], a[href*="customer_id="]');
+    for (const a of links) {
+      const candidate = valid(a.innerText || a.textContent || '');
+      if (candidate && candidate.split(/\s+/).length >= 2) { name = candidate; break; }
+    }
+    if (name) break;
+  }
+
+  // A lokalizált fejléc utáni sorokat elemezzük, nem az egész rendelést.
   if (!name) {
-    const marker = /(Vásárló adatok|Vevő adatok|Customer details|Customer info)/i.exec(text);
-    if (marker) {
-      const tail = text.slice(marker.index + marker[0].length, marker.index + marker[0].length + 450);
-      name = clean((tail.split(/\s+(?:Magánszemély|Cég|E-mail|Email|Telefon|Lehetőségek|\+\d|[\w.+-]+@[\w.-]+)\b/i)[0] || ''));
+    const lines = raw.split(/[\r\n]+/).map(clean).filter(Boolean);
+    const start = lines.findIndex(line => marker.test(line));
+    if (start >= 0) {
+      const match = marker.exec(lines[start]);
+      const inline = lines[start].slice(match.index + match[0].length).replace(/^\s*[:\-]\s*/, '');
+      if (inline) name = valid(delabel(inline.split(stops)[0]));
+      if (!name) {
+        let first = '', last = '';
+        for (const line of lines.slice(start + 1, start + 12)) {
+          if (stop.test(line) && !/^(?:Nume|Prenume|Client|Vevő|Vásárló)\s*:/i.test(line)) break;
+          const fm = /^(?:Prenume|First\s*name|Keresztnév)\s*[:：-]\s*(.+)$/i.exec(line);
+          const lm = /^(?:Nume(?:le)?|Last\s*name|Vezetéknév)\s*[:：-]\s*(.+)$/i.exec(line);
+          if (fm) { first = valid(fm[1]); continue; }
+          if (lm) { last = valid(lm[1]); continue; }
+          const candidate = valid(delabel(line));
+          if (candidate && candidate.split(/\s+/).length >= 2) { name = candidate; break; }
+        }
+        if (!name && first && last) name = first + ' ' + last;
+      }
     }
   }
-  const sos = /(^|[^A-Za-zÁÉÍÓÖŐÚÜŰáéíóöőúüű0-9])(?:SOS|S\.\s*O\.\s*S\.)(?=$|[^A-Za-zÁÉÍÓÖŐÚÜŰáéíóöőúüű0-9])/i.test(text);
+
+  // A korábbi egysoros OpenCart-szövegekhez kompatibilis tartalék.
+  if (!name) {
+    const m = marker.exec(text);
+    if (m) {
+      const tail = text.slice(m.index + m[0].length, m.index + m[0].length + 450);
+      name = valid(delabel(tail.split(stops)[0]));
+    }
+  }
   return {name, lang: (document.documentElement && document.documentElement.lang) || '', sos, href: location.href || ''};
 })()`
 
