@@ -4,6 +4,7 @@ param(
     [Parameter(Mandatory = $true)][string]$InstallDir,
     [string]$BravePath = '',
     [string]$ChromePath = '',
+    [string]$EdgePath = '',
     [string]$TestRoot = '',
     [switch]$SkipLaunch,
     [switch]$ForceNoBrowsers
@@ -12,137 +13,148 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 $InstallDir = [IO.Path]::GetFullPath($InstallDir)
-if (-not (Test-Path -LiteralPath (Join-Path $InstallDir 'start_opencart_browser.ps1') -PathType Leaf)) {
-    throw 'Hianyzik a bongeszoindito script a telepitesi mappabol.'
+$launcher = Join-Path $InstallDir 'start_opencart_browser.ps1'
+if (-not (Test-Path -LiteralPath $launcher -PathType Leaf)) {
+    throw 'A start_opencart_browser.ps1 hianyzik. Csomagold ki a teljes ZIP-et.'
 }
 
 function Find-Browser([string]$Name, [string]$Override) {
     if ($ForceNoBrowsers) { return $null }
     if ($Override) {
-        if (-not (Test-Path -LiteralPath $Override -PathType Leaf)) { throw "Nem letezik: $Override" }
+        if (-not (Test-Path -LiteralPath $Override -PathType Leaf)) { throw "Bongeszo nem talalhato: $Override" }
         return (Resolve-Path -LiteralPath $Override).Path
     }
-    $exe = if ($Name -eq 'Brave') { 'brave.exe' } else { 'chrome.exe' }
-    $subdir = if ($Name -eq 'Brave') { 'BraveSoftware\Brave-Browser\Application\brave.exe' } else { 'Google\Chrome\Application\chrome.exe' }
+    if ($TestRoot) { return $null } # CI teszt: tilos a host bongeszoit beolvasni
+    $exe = switch ($Name) { 'Brave' { 'brave.exe' }; 'Chrome' { 'chrome.exe' }; 'Edge' { 'msedge.exe' } }
+    $sub = switch ($Name) {
+        'Brave' { 'BraveSoftware\Brave-Browser\Application\brave.exe' }
+        'Chrome' { 'Google\Chrome\Application\chrome.exe' }
+        'Edge' { 'Microsoft\Edge\Application\msedge.exe' }
+    }
     $paths = New-Object System.Collections.Generic.List[string]
-    foreach ($root in @('HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths', 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths', 'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\App Paths')) {
+    foreach ($root in @('HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths','HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\App Paths')) {
         try {
-            $item = Get-Item -LiteralPath "$root\$exe" -ErrorAction Stop
-            $v = [string]$item.GetValue('')
-            if ($v) { $paths.Add([Environment]::ExpandEnvironmentVariables($v.Trim('"'))) }
+            $key = Get-Item -LiteralPath "$root\$exe" -ErrorAction Stop
+            $value = [string]$key.GetValue('')
+            if ($value) { $paths.Add([Environment]::ExpandEnvironmentVariables($value.Trim('"'))) }
         } catch { }
     }
-    foreach ($prefix in @($env:ProgramFiles, ${env:ProgramFiles(x86)}, $env:LOCALAPPDATA)) {
-        if ($prefix) { $paths.Add((Join-Path $prefix $subdir)) }
+    foreach ($prefix in @($env:ProgramFiles, ${env:ProgramFiles(x86)})) {
+        if ($prefix) { $paths.Add((Join-Path $prefix $sub)) }
     }
     try {
         $command = Get-Command $exe -ErrorAction Stop
         if ($command.Source) { $paths.Add($command.Source) }
     } catch { }
     foreach ($path in ($paths | Select-Object -Unique)) {
-        if ($path -and (Test-Path -LiteralPath $path -PathType Leaf)) {
-            return (Resolve-Path -LiteralPath $path).Path
-        }
+        if ($path -and (Test-Path -LiteralPath $path -PathType Leaf)) { return (Resolve-Path -LiteralPath $path).Path }
     }
     return $null
 }
 
-$braveExe = Find-Browser 'Brave' $BravePath
-$chromeExe = Find-Browser 'Chrome' $ChromePath
-if (-not $braveExe -and -not $chromeExe) {
-    throw 'Nem talalhato telepitett Brave vagy Google Chrome. A bongeszo beallitasa nem tortent meg.'
+$discovered = [ordered]@{
+    Brave  = Find-Browser 'Brave' $BravePath
+    Chrome = Find-Browser 'Chrome' $ChromePath
+    Edge   = Find-Browser 'Edge' $EdgePath
 }
+$available = @($discovered.Keys | Where-Object { $discovered[$_] })
+if ($available.Count -eq 0) {
+    throw 'Nem talalhato Brave, Chrome vagy Microsoft Edge. Telepits Chromium-alapu bongeszot, majd futtasd ujra a telepitot.'
+}
+$preferred = [string]$available[0]
 
-$preferred = 'Brave'
-try {
-    $default = [string](Get-ItemProperty -LiteralPath 'HKCU:\Software\Microsoft\Windows\Shell\Associations\UrlAssociations\https\UserChoice' -ErrorAction Stop).ProgId
-    if ($default -match 'Chrome' -and $chromeExe) { $preferred = 'Chrome' }
-    elseif ($default -match 'Brave' -and $braveExe) { $preferred = 'Brave' }
-} catch { }
-if ($preferred -eq 'Brave' -and -not $braveExe) { $preferred = 'Chrome' }
-if ($preferred -eq 'Chrome' -and -not $chromeExe) { $preferred = 'Brave' }
-
+# A telepito SOHA nem a rendszergazda vagy masik konkret felhasznalo
+# Desktop/Startup/LOCALAPPDATA konyvtaraba telepit.
 if ($TestRoot) {
-    $desktop = Join-Path $TestRoot 'Desktop'
-    $startMenu = Join-Path $TestRoot 'StartMenu'
-    $startup = Join-Path $TestRoot 'Startup'
-    $profileRoot = Join-Path $TestRoot 'Profiles'
+    $commonDesktop = Join-Path $TestRoot 'PublicDesktop'
+    $commonPrograms = Join-Path $TestRoot 'CommonPrograms'
+    $commonStartup = Join-Path $TestRoot 'CommonStartup'
 } else {
-    $desktop = [Environment]::GetFolderPath('DesktopDirectory')
-    $startMenu = Join-Path ([Environment]::GetFolderPath('Programs')) 'OpenCart Rendelesmasolo'
-    $startup = [Environment]::GetFolderPath('Startup')
-    $profileRoot = Join-Path $env:LOCALAPPDATA 'NameNumberCopy\BrowserProfiles'
+    $commonDesktop = [Environment]::GetFolderPath('CommonDesktopDirectory')
+    $commonPrograms = [Environment]::GetFolderPath('CommonPrograms')
+    $commonStartup = [Environment]::GetFolderPath('CommonStartup')
+    $commonData = [Environment]::GetFolderPath('CommonApplicationData')
+    if (-not $commonData) { $commonData = $env:ProgramData }
+    if (-not $commonDesktop -and $env:PUBLIC) { $commonDesktop = Join-Path $env:PUBLIC 'Desktop' }
+    if (-not $commonPrograms -and $commonData) { $commonPrograms = Join-Path $commonData 'Microsoft\Windows\Start Menu\Programs' }
+    if (-not $commonStartup -and $commonPrograms) { $commonStartup = Join-Path $commonPrograms 'Startup' }
 }
-foreach ($dir in @($desktop, $startMenu, $startup, $profileRoot)) {
-    if (-not $dir) { throw 'Hianyzik egy Windows felhasznaloi mappa.' }
-    New-Item -ItemType Directory -Force -Path $dir | Out-Null
-}
-
-$browsers = @{}
-foreach ($entry in @(@('Brave', $braveExe, 9222, 'OpenCartBraveDebug'), @('Chrome', $chromeExe, 9223, 'OpenCartChromeDebug'))) {
-    $name = [string]$entry[0]
-    $exe = [string]$entry[1]
-    if (-not $exe) { continue }
-    $port = [int]$entry[2]
-    $newProfile = Join-Path $profileRoot $name
-    $profile = $newProfile
-    if (-not $TestRoot) {
-        $legacy = Join-Path $env:LOCALAPPDATA ([string]$entry[3] + '\User Data')
-        if (Test-Path -LiteralPath $legacy -PathType Container) {
-            # A korabbi CDP profil meglevo webshop-bejelentkezeseinek megorzese.
-            $profile = $legacy
-        }
+$startMenu = if ($commonPrograms) { Join-Path $commonPrograms 'OpenCart Rendelesmasolo' } else { '' }
+foreach ($item in @(
+    @{ Key = 'Kozos Asztal'; Path = $commonDesktop },
+    @{ Key = 'Kozos Start menu'; Path = $startMenu },
+    @{ Key = 'Minden felhasznalo Startup'; Path = $commonStartup }
+)) {
+    if (-not $item.Path) {
+        throw ("Nem erheto el: {0}. A rendszergazda jogosultsag vagy a Windows kozosen hasznalt mappainak ellenorzese szukseges." -f $item.Key)
     }
-    New-Item -ItemType Directory -Force -Path $profile | Out-Null
-    $browsers[$name] = @{ Exe = $exe; Port = $port; Profile = $profile }
+    try {
+        New-Item -ItemType Directory -Force -Path $item.Path -ErrorAction Stop | Out-Null
+    } catch {
+        throw ("Nem hozhato letre a gepi mappa: {0}. Futtasd a telepitot rendszergazdakent. Reszletek: {1}" -f $item.Path, $_.Exception.Message)
+    }
 }
 
+# A konfiguracio csak gepi bongeszo-utvonalakat tarol. SOHA nem mentunk ide
+# felhasznalonevet, user profil utvonalat, jelszot vagy webshop munkamenetet.
+$browsers = [ordered]@{}
+foreach ($name in $available) {
+    $port = if ($name -eq 'Chrome') { 9223 } else { 9222 }
+    $browsers[$name] = @{ Exe = [string]$discovered[$name]; Port = $port }
+}
+$config = @{
+    Version = 3
+    Scope = 'Machine'
+    Primary = $preferred
+    Browsers = $browsers
+    UpdatedAt = (Get-Date).ToString('o')
+}
 $configPath = Join-Path $InstallDir 'opencart_browser_config.json'
 $stamp = Get-Date -Format 'yyyyMMdd_HHmmss_fff'
 if (Test-Path -LiteralPath $configPath -PathType Leaf) {
     Copy-Item -LiteralPath $configPath -Destination "$configPath.backup_$stamp" -ErrorAction Stop
 }
-$config = @{ Version = 2; Primary = $preferred; Browsers = $browsers; UpdatedAt = (Get-Date).ToString('o') }
-$json = $config | ConvertTo-Json -Depth 8
-$tmp = "$configPath.new_$stamp"
-[IO.File]::WriteAllText($tmp, $json, (New-Object System.Text.UTF8Encoding($false)))
-Move-Item -LiteralPath $tmp -Destination $configPath -Force
+$tmp = "$configPath.installing_$stamp"
+try {
+    [IO.File]::WriteAllText($tmp, ($config | ConvertTo-Json -Depth 8), (New-Object System.Text.UTF8Encoding($false)))
+    Move-Item -LiteralPath $tmp -Destination $configPath -Force
+} finally {
+    if (Test-Path -LiteralPath $tmp -PathType Leaf) { Remove-Item -LiteralPath $tmp -Force }
+}
 
 $wsh = New-Object -ComObject WScript.Shell
 $psExe = Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe'
-$launcher = Join-Path $InstallDir 'start_opencart_browser.ps1'
-function Set-LauncherShortcut([string]$path, [string]$Browser, [string]$exe, [bool]$AutoStart = $false) {
-    if (Test-Path -LiteralPath $path -PathType Leaf) {
-        Copy-Item -LiteralPath $path -Destination "$path.backup_$stamp" -ErrorAction Stop
+function Set-LauncherShortcut([string]$LinkPath, [string]$Browser, [string]$IconExe, [bool]$AutoStart = $false) {
+    if (Test-Path -LiteralPath $LinkPath -PathType Leaf) {
+        Copy-Item -LiteralPath $LinkPath -Destination "$LinkPath.backup_$stamp" -ErrorAction Stop
     }
-    $link = $wsh.CreateShortcut($path)
+    $link = $wsh.CreateShortcut($LinkPath)
     $link.TargetPath = $psExe
     $args = '-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File "' + $launcher + '" -Browser ' + $Browser
     if ($AutoStart) { $args += ' -AutoStart' }
     $link.Arguments = $args
     $link.WorkingDirectory = $InstallDir
-    $link.IconLocation = "$exe,0"
-    $link.Description = 'OpenCart rendelesmasolo: CDP bongeszoport es elkulonitett profil'
+    $link.IconLocation = "$IconExe,0"
+    $link.Description = 'OpenCart CDP inditas, minden felhasznalonak, kulon profillal'
     $link.Save()
 }
 
-foreach ($name in ($browsers.Keys | Sort-Object)) {
-    $exe = [string]$browsers[$name].Exe
+foreach ($name in $available) {
     $label = "OpenCart - $name.lnk"
-    Set-LauncherShortcut (Join-Path $startMenu $label) $name $exe
-    Set-LauncherShortcut (Join-Path $desktop $label) $name $exe
+    Set-LauncherShortcut (Join-Path $commonDesktop $label) $name $discovered[$name]
+    Set-LauncherShortcut (Join-Path $startMenu $label) $name $discovered[$name]
 }
-$startupLink = Join-Path $startup 'OpenCart Rendelesmasolo - bongeszoinditas.lnk'
-Set-LauncherShortcut $startupLink 'Auto' ([string]$browsers[$preferred].Exe) $true
+$startupLink = Join-Path $commonStartup 'OpenCart Rendelesmasolo - bongeszoinditas.lnk'
+Set-LauncherShortcut $startupLink 'Auto' $discovered[$preferred] $true
 
+# Emelt jogosultsagu telepitobol nem inditunk emelt szintu bongeszot.
+# Az OpenCart-bongeszo a kovetkezo Windows-bejelentkezesnel, a NORMAL
+# felhasznalo jogaval indul a CommonStartup parancsikonbol.
 if (-not $SkipLaunch) {
-    # Telepiteskor is inditsuk el, es ellenorizzuk, hogy a CDP valoban elerheto.
-    & $launcher -Browser Auto -AutoStart
+    Write-Host '[INFO] A bongeszo normal felhasznalokent a kovetkezo Windows-bejelentkezesnel indul.'
+    Write-Host '[INFO] Most az OpenCart ikonra kattintva is elindithato normal joggal.'
 }
-
-Write-Host "[OK] Beallitott bongeszo: $preferred" -ForegroundColor Green
-foreach ($name in ($browsers.Keys | Sort-Object)) {
-    Write-Host ("[OK] {0}: {1}, port {2}, profil: {3}" -f $name, $browsers[$name].Exe, $browsers[$name].Port, $browsers[$name].Profile)
-}
-Write-Host "[OK] Automatikus indulasi parancsikon: $startupLink"
-Write-Host '[INFO] A normal Brave/Chrome profil, a bongeszo alapertelmezett beallitasai es a taskbar-ikonok valtozatlanok.'
+Write-Host ("[OK] Gepi telepites: {0}" -f $preferred) -ForegroundColor Green
+Write-Host ("[OK] Osszes Windows-felhasznalo inditoja: {0}" -f $commonStartup)
+Write-Host '[OK] A bongeszo adatmappaja az inditaskor felhasznalonkent kulon jon letre.'
+Write-Host '[INFO] Nincs sajat user/profil vagy OpenCart-bejelentkezes eltarolva a konfiguracioban.'

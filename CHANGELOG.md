@@ -1,3 +1,14 @@
+## 2026-10-12 - v1.1.2-rc.1 (gepszintu bongeszo-telepites, nem felhasznaloi mappa)
+
+- Javítva: 'Hiányzik egy Windows felhasználói mappa' hiba. Közös Public Desktop, Common Programs, Common Startup használatával, felhasználói mappáktól függetlenül.
+- Edge támogatás: szűz Windows 11 / Edge-only gépen is 9222 CDP debugprofil, internet és extra függőség nélkül.
+- Felhasználónként elkülönített CDP-profil: az indító az aktuális felhasználó LOCALAPPDATA mappáját keresi az első használatkor, nem a telepítő adminisztrátorának profilját.
+- Emelt szintű telepítőből nem indul emelt jogosultságú böngésző. A közös Startup parancsikon normál Windows-logon után fut.
+- Meglévő célmappa vagy EXE esetén interaktív folytatási kérdés, dátumos biztonsági mentés; nem tekintjük hibának a mappa létezését.
+- Nem szükséges Python, Go, winget, külső számla/fiók vagy manuális Chromium-debugprofil készítés. UAC szükséges lehet, ha gépszintű parancsikonokhoz adminjog kell.
+- A rendelésmásoló kódja és a vágólapformátum változatlan.
+- Windows GitHub Actions: több böngésző, Edge-only, CommonStartup és Common Desktop, mentések, verzió és ZIP-fájl ellenőrzés. Élő felhasználói teszt még hátravan.
+
 ## 2026-10-12 - v1.1.1-rc.1 (egységes, kötelező patch-verziózás)
 
 - Az EXE beágyazott verzióját a `VERSION` fájl adja; a fixen beégetett régi verzió megszűnt.

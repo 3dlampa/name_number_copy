@@ -1,6 +1,6 @@
 # Név és rendelésszám vágólapra másoló
 
-**Aktuális kiadás (EXE és telepítő):** `v1.1.1-rc.1`  
+**Aktuális kiadás (EXE és telepítő):** `v1.1.2-rc.1`  
 **Verzióforrás:** `VERSION` (az EXE-be beágyazva, a Release tag/ZIP ezt ellenőrzi)  
 **Platform:** Windows 11 x64  
 **Programfájl:** `name - number copy.exe`
@@ -66,7 +66,7 @@ Az `-H windowsgui` szükséges, hogy egy rendelésnél ne nyíljon konzol. Az `A
 
 ## Browser autoconfiguration (v1.1.0-rc.1)
 
-Az uj telepito felismeri a telepitett Brave es Google Chrome bongeszot. A Brave CDP-portja 9222; Chrome 9223. A felhasznalo Windows-alapertelmezett Brave/Chrome bongeszojet automatikusan preferalja (ha nincs, Brave, majd Chrome). Mindket telepitett bongeszohoz kulon inditoikon jon letre az Asztalon es a Start menuben. A preferalt bongeszo minden felhasznaloi Windows-bejelentkezeskor automatikusan elindul, ezert nem kell kezzel debug parancssori kapcsolokat irni.
+Az uj telepito felismeri a telepitett Brave es Google Chrome bongeszot. A Brave CDP-portja 9222; Chrome 9223. A felhasznalo Windows-alapertelmezett Brave/Chrome/Edge bongeszojet automatikusan preferalja (ha nincs, Brave, majd Chrome). Mindket telepitett bongeszohoz kulon inditoikon jon letre az Asztalon es a Start menuben. A preferalt bongeszo minden felhasznaloi Windows-bejelentkezeskor automatikusan elindul, ezert nem kell kezzel debug parancssori kapcsolokat irni.
 
 A Chrome 136-tol `--remote-debugging-port` csak kulon `--user-data-dir` adatkotarral megbizhato. A telepito a korabbi OpenCartDebug profilokat, ha megtalalja, megtartja es ujrafelhasznalja. A regi normal Brave/Chrome profilok, a Windows alapertelmezett bongeszo es az eredeti taskbar ikonok valtozatlanok. Az uj ikon neve **OpenCart - Brave** vagy **OpenCart - Chrome**; rendelest ebben a kulon bongeszoprofilban kell megnyitni, es elso alkalommal a webshopba bejelentkezni. A normal bongeszoikonra kattintva tovabbra is elindulhat a normal (CDP nelkuli) profil, ennek automatikus atirasa nem biztonsagos.
 
@@ -79,3 +79,17 @@ A debug-port kizarolag 127.0.0.1-hez kotodik, de a gepen futo mas helyi folyamat
 **Mindig csak a harmadik (PATCH) számot növeljük eggyel:** `1.3.1 → 1.3.2`, `1.1.0 → 1.1.1`. A major/minor számot automatikusan nem módosítjuk. Tesztkiadás esetén az `-rc.1` utótag az állapotot jelenti; nem helyettesíti a harmadik szám emelését.
 
 Az EXE, a `VERSION` fájl, a kiadási Git-tag, a Release címe, a ZIP neve és a Notion változásnaplója ugyanazt a verziót kell hogy tartalmazza. A GitHub Actions publikálás előtt ellenőrzi a korábbi kiadásokhoz képest az egylépéses patch növelést, a beágyazott Go-verziót, a telepítőt, a ZIP-t és a standalone EXE-t. A korábbi stabil Release változatlan, az RC külön kiadás.
+
+
+## v1.1.2-rc.1 - minden Windows-felhasználó, szűz Windows 11
+
+- **Gépszintű telepítő**, rendszergazdai jogosultság szükséges (Windows UAC egyszer kérhet jóváhagyást), utána **senkinek nem kell külön telepítenie**.
+- A közös Windows Asztal, Start menü és **minden felhasználó Startup** mappájába helyezi az OpenCart-indító parancsikonokat. Nem függ attól, melyik adminisztrátori fiókból fut a telepítő.
+- Brave, Chrome és **Microsoft Edge** felismerés. Szűz Windows 11-en a rendszerbe épített Edge önmagában elég: nincs szükség Pythonra, Go-ra, wingetre, külső letöltésre vagy új felhasználói fiókra.
+- Brave és Edge: CDP 9222; Chrome: CDP 9223. A már működő másoló-EXE működéséhez nem nyúltunk.
+- Az OpenCart böngészőprofil minden Windows-felhasználónál a **saját** `%LOCALAPPDATA%\NameNumberCopy\BrowserProfiles\...` helyén jön létre **csak az első használatkor**. Korábbi OpenCart-specifikus CDP-profilokat újrahasznál; a normál böngészőprofilokat nem módosítja.
+- A rendszer-bejelentkezéskor a közös Startup indítja a kiválasztott böngészőt az adott felhasználó **normál jogosultságával**; a telepítő rendszergazdaként nem indít emelt jogú böngészőt.
+- Ha a célmappa vagy az EXE már létezik, interaktív telepítésnél **rákérdez a folytatásra**. Jóváhagyott frissítésnél a korábbi EXE/config/script/ikon biztonsági mentése megmarad. A meglévő mappa önmagában nem hiba.
+- Az OpenCart webshop-adminba történő bejelentkezést nem kerüli meg: új, elkülönített profilban szükség lehet az eredeti webshop-fiókkal történő bejelentkezésre; nincs extra, külön telepítőfiók.
+- **Korlát:** ha egy speciálisan módosított Windowsról az összes Chromium-alapú böngészőt eltávolították, internet nélküli telepítő nem tud új böngészőt előállítani. Ilyenkor pontos, érthető hiba jelenik meg, nem hamis sikerüzenet.
+- **Visszaállítás:** az ellenőrzött v1.0.3 stabil Release, a v1.1.0-rc.1 és v1.1.1-rc.1 próbaverziók érintetlenül megmaradnak.

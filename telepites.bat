@@ -14,6 +14,22 @@ set "INTERACTIVE=1"
 set "INSTALL_DIR="
 set "BACKUP_CREATED="
 
+rem Gepszintu (osszes felhasznalos) telepites: egyetlen UAC kerdes, ha kell.
+rem CI teszt idejen nincs valodi CommonStartup-modositas.
+if "%NNC_TEST_SKIP_LAUNCH%"=="1" goto :NO_ELEVATE
+fltmc >nul 2>&1
+if not errorlevel 1 goto :NO_ELEVATE
+echo [INFO] A gep osszes felhasznalojahoz rendszergazdai engedely szukseges.
+echo [INFO] A Windows most EGYSZER engedelyt ker a telepiteshez.
+if "%~1"=="" (
+    powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "$p=Start-Process -FilePath '%~f0' -Verb RunAs -Wait -PassThru; exit $p.ExitCode"
+) else (
+    powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "$p=Start-Process -FilePath '%~f0' -ArgumentList '""%~1""' -Verb RunAs -Wait -PassThru; exit $p.ExitCode"
+)
+if errorlevel 1 goto :ELEVATION_FAIL
+endlocal & exit /b 0
+:NO_ELEVATE
+
 if not exist "%SOURCE%" goto :MISSING_SOURCE
 if not exist "%SCRIPT_SETUP%" goto :MISSING_SCRIPTS
 if not exist "%SCRIPT_START%" goto :MISSING_SCRIPTS
@@ -49,6 +65,23 @@ set "TARGET=%INSTALL_DIR%\name - number copy.exe"
 echo.
 echo Celmappa: "%INSTALL_DIR%"
 echo.
+rem A mar letezo mappa NEM hiba: udvariasan megerositest kerunk.
+if "%INTERACTIVE%"=="0" goto :CONFIRMED
+if exist "%TARGET%" goto :ASK_UPDATE
+if exist "%INSTALL_DIR%\" goto :ASK_FOLDER
+goto :CONFIRMED
+
+:ASK_UPDATE
+echo [INFO] Itt mar van egy name - number copy.exe.
+echo [INFO] Frissites elott biztonsagi masolatot keszitek.
+goto :ASK_CONTINUE
+:ASK_FOLDER
+echo [INFO] Ez a mappa mar letezik. Hasznalhatom a telepiteshez?
+:ASK_CONTINUE
+set "ANSWER="
+set /p "ANSWER=Folytassam? (I/N): "
+if /I not "%ANSWER%"=="I" goto :CANCELLED
+:CONFIRMED
 if not exist "%INSTALL_DIR%\" mkdir "%INSTALL_DIR%" >nul 2>&1
 if not exist "%INSTALL_DIR%\" goto :CREATE_DIR_FAIL
 
@@ -72,7 +105,7 @@ if errorlevel 1 goto :SCRIPT_FAIL
 call :COPY_SCRIPT "%SCRIPT_START%" "%INSTALL_DIR%\start_opencart_browser.ps1"
 if errorlevel 1 goto :SCRIPT_FAIL
 
-echo [INFO] Brave/Chrome automatikus felismerese es beallitasa...
+echo [INFO] Brave/Chrome/Edge gepszintu felismerese es beallitasa...
 rem A tesztparameterek kizarolag a CI tesztkornyezetben aktivak.
 if "%NNC_TEST_SKIP_LAUNCH%"=="1" goto :SETUP_TEST
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%INSTALL_DIR%\setup_browser.ps1" -InstallDir "%INSTALL_DIR%"
@@ -80,7 +113,7 @@ if errorlevel 1 goto :BROWSER_FAIL
 goto :SUCCESS
 
 :SETUP_TEST
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%INSTALL_DIR%\setup_browser.ps1" -InstallDir "%INSTALL_DIR%" -BravePath "%NNC_TEST_BRAVE_PATH%" -ChromePath "%NNC_TEST_CHROME_PATH%" -TestRoot "%NNC_TEST_ROOT%" -SkipLaunch
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%INSTALL_DIR%\setup_browser.ps1" -InstallDir "%INSTALL_DIR%" -BravePath "%NNC_TEST_BRAVE_PATH%" -ChromePath "%NNC_TEST_CHROME_PATH%" -EdgePath "%NNC_TEST_EDGE_PATH%" -TestRoot "%NNC_TEST_ROOT%" -SkipLaunch
 if errorlevel 1 goto :BROWSER_FAIL
 goto :SUCCESS
 
@@ -105,6 +138,14 @@ set "BACKUP_CREATED=%TARGET%.backup_%STAMP%"
 copy /B /Y "%TARGET%" "%BACKUP_CREATED%" >nul
 if errorlevel 1 exit /b 1
 exit /b 0
+
+:CANCELLED
+echo [INFO] Megszakitva: nem tortent telepites vagy mappafeluliras.
+goto :FAIL
+:ELEVATION_FAIL
+echo [HIBA] A gepi telepiteshez nem kaptunk adminisztratori jogosultsagot.
+echo [INFO] Jobb klikk telepites.bat, majd Futtatas rendszergazdakent.
+goto :FAIL
 
 :MISSING_SOURCE
 echo [HIBA] A name - number copy.exe nincs a telepito mellett.
@@ -145,8 +186,9 @@ echo.
 echo [OK] Masoloprogram es bongeszo beallitva.
 echo [OK] EXE: "%TARGET%"
 if defined BACKUP_CREATED echo [OK] Regi EXE mentese: "%BACKUP_CREATED%"
-echo [INFO] A beallitott bongeszo minden Windows-bejelentkezeskor elindul.
-echo [INFO] Az OpenCart - Brave/Chrome ikonok az Asztalon es a Start menuben talalhatok.
+echo [INFO] A gep MINDEN Windows-felhasznalojanal automatikusan indul a beallitott bongeszo.
+echo [INFO] A kozos Asztalon es Start menuben letrejottek az OpenCart - Brave/Chrome/Edge ikonok.
+echo [INFO] A bongeszo minden felhasznalonak sajat, elkulonitett OpenCart-profilt hasznal.
 if "%INTERACTIVE%"=="1" pause
 endlocal & exit /b 0
 :FAIL
