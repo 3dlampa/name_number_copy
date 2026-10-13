@@ -17,6 +17,7 @@ set "BACKUP_CREATED="
 if not exist "%SOURCE%" goto :MISSING_SOURCE
 if not exist "%SCRIPT_SETUP%" goto :MISSING_SCRIPTS
 if not exist "%SCRIPT_START%" goto :MISSING_SCRIPTS
+if not exist "%~dp0elevate_installer.ps1" goto :MISSING_SCRIPTS
 
 if not "%~1"=="" goto :USE_ARGUMENT
 
@@ -50,21 +51,25 @@ echo.
 echo Celmappa: "%INSTALL_DIR%"
 echo.
 rem A mar letezo mappa NEM hiba: udvariasan megerositest kerunk.
-if "%INTERACTIVE%"=="0" goto :CONFIRMED
+if "%INTERACTIVE%"=="0" goto :CHECK_ELEVATION
 rem Elobb a felhasznalo kivalasztotta a celmappat.
 rem A gepszintu telepites admin gyerekben fut, a CDP teszt viszont
 rem UTANA a telepitot indito NEM emelt jogosultsagu felhasznalonal.
+:CHECK_ELEVATION
 if "%NNC_TEST_SKIP_LAUNCH%"=="1" goto :INSTALL_FILES
 fltmc >nul 2>&1
 if not errorlevel 1 goto :INSTALL_FILES
 echo [INFO] Egy Windows UAC engedely kell a kozos inditoikonok telepitesehez.
-set "NNC_INSTALLER_SELF=%~f0"
-set "NNC_INSTALLER_DEST=%INSTALL_DIR%"
-powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "$p=Start-Process -FilePath $env:NNC_INSTALLER_SELF -ArgumentList ([char]34 + $env:NNC_INSTALLER_DEST + [char]34 + ' /elevated-child') -Verb RunAs -Wait -PassThru; exit $p.ExitCode"
+rem Az utvonal adat marad a PowerShell es az emelt CMD kozott.
+set "NNC_ELEVATE_INSTALLER=%~f0"
+set "NNC_ELEVATE_DESTINATION=%INSTALL_DIR%"
+set "NNC_ELEVATE_CHILD=1"
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0elevate_installer.ps1"
 if errorlevel 1 goto :ELEVATION_FAIL
 goto :VERIFY_BROWSER
 
 :INSTALL_FILES
+if "%INTERACTIVE%"=="0" goto :CONFIRMED
 if exist "%TARGET%" goto :ASK_UPDATE
 if exist "%INSTALL_DIR%\" goto :ASK_FOLDER
 goto :CONFIRMED
@@ -98,9 +103,13 @@ for %%I in ("%TARGET%") do set "TARGET_SIZE=%%~zI"
 if not "%SOURCE_SIZE%"=="%TARGET_SIZE%" goto :VERIFY_FAIL
 
 :INSTALL_SCRIPTS
-call :COPY_SCRIPT "%SCRIPT_SETUP%" "%INSTALL_DIR%\setup_browser.ps1"
+set "COPY_SOURCE=%SCRIPT_SETUP%"
+set "COPY_TARGET=%INSTALL_DIR%\setup_browser.ps1"
+call :COPY_SCRIPT
 if errorlevel 1 goto :SCRIPT_FAIL
-call :COPY_SCRIPT "%SCRIPT_START%" "%INSTALL_DIR%\start_opencart_browser.ps1"
+set "COPY_SOURCE=%SCRIPT_START%"
+set "COPY_TARGET=%INSTALL_DIR%\start_opencart_browser.ps1"
+call :COPY_SCRIPT
 if errorlevel 1 goto :SCRIPT_FAIL
 
 echo [INFO] Brave/Chrome/Edge gepszintu felismerese es beallitasa...
@@ -138,15 +147,15 @@ echo [OK] CDP kapcsolat ellenorizve a bejelentkezett felhasznalo alatt.
 goto :SUCCESS
 
 :COPY_SCRIPT
-rem Nem irjuk felul ugyanazzal az utvonallal sajat magat.
-if /I "%~f1"=="%~f2" exit /b 0
-if exist "%~2" (
-    copy /B /Y "%~2" "%~2.backup_%RANDOM%_%RANDOM%" >nul
+rem Ugyanazt a fajlt nem masoljuk sajat magara; nincs utvonalas CALL ujraertelmezes.
+if /I "%COPY_SOURCE%"=="%COPY_TARGET%" exit /b 0
+if exist "%COPY_TARGET%" (
+    copy /B /Y "%COPY_TARGET%" "%COPY_TARGET%.backup_%RANDOM%_%RANDOM%" >nul
     if errorlevel 1 exit /b 1
 )
-copy /B /Y "%~1" "%~2" >nul
+copy /B /Y "%COPY_SOURCE%" "%COPY_TARGET%" >nul
 if errorlevel 1 exit /b 1
-fc /B "%~1" "%~2" >nul
+fc /B "%COPY_SOURCE%" "%COPY_TARGET%" >nul
 if errorlevel 1 exit /b 1
 exit /b 0
 

@@ -1,6 +1,6 @@
 # Név és rendelésszám vágólapra másoló
 
-**Aktuális kiadás (EXE és telepítő):** `v1.1.7-rc.1`  
+**Aktuális kiadás (EXE és telepítő):** `v1.1.8`  
 **Verzióforrás:** `VERSION` (az EXE-be beágyazva, a Release tag/ZIP ezt ellenőrzi)  
 **Platform:** Windows 11 x64  
 **Programfájl:** `name - number copy.exe`
@@ -145,3 +145,16 @@ Az EXE, a `VERSION` fájl, a kiadási Git-tag, a Release címe, a ZIP neve és a
 - A fókuszvisszaállítás most először még a `FreeConsole` hívás előtt történik, majd a konzol bezárását követően szükség esetén ellenőrzötten újrapróbálja.
 - **Egyetlen rendelésnél változatlan** az azonnali, konzol nélküli vágólapmásolás, fókuszváltás nélkül.
 - Az összes többi működés (vevőnév, RO/HU/SK/CZ, SOS, portok, telepítő, böngészőprofilok) változatlan. A tesztkiadás a felhasználó Windows-ablakainak valós kipróbálásáig RC.
+
+
+## v1.1.8 – stabil UAC-útvonalkezelés
+
+- Az emelt telepítő teljes útvonala és célmappája adatként jut át a PowerShell és CMD között; az aposztróf, Unicode, százalékjel és további legális karakterek nem értelmeződnek parancsként.
+- Közös elevate_installer.ps1 segéd, JSON/Base64 adatátadás és rögzített /elevated-child jelző; a normál felhasználói CDP-ellenőrzés megmarad.
+- Az argumentummal indított telepítés is ellenőrzi az emelési szükségletet. A scriptsmásolás nem ad útvonalakat a CALL második értelmezési körének.
+- Megmarad a v1.1.7 általános alkalmazásfókusz-javítása, a korábbi rendelésválasztó, többnyelvű névkinyerés és az automatikus CDP-indítás.
+- Automatikus regressziós ellenőrzés a valódi BAT/helper/encoded-bootstrap/CMD adatútra; RunAs-kérés, /elevated-child, parent CDP-folytatás, hibakód és megszakítás is ellenőrzött.
+- A javítás alapváltozatán négy valódi UAC-telepítés/újratelepítés sikeres volt normál és speciális útvonalakkal; a mért token Limitedből Fullra váltott. A gép házirendje kérdés nélküli emelést engedélyezett; interaktív UAC-Igen/Nem nem volt tesztelve.
+- A v1.1.8 összeillesztett kiadása újra lefuttatja a legújabb Go-, JavaScript-, telepítő- és CDP-teszteket. A felhasználó kérésére stabil, RC nélkül.
+- Az összes korábbi GitHub Release megmarad; külön v1.1.8 EXE és teljes ZIP készül.
+

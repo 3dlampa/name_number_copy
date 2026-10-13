@@ -81,18 +81,19 @@ jobs:
         run: |
           $ErrorActionPreference = 'Stop'
           New-Item -ItemType Directory -Force -Path 'package/source/.github/workflows', 'package/source/tests' | Out-Null
-          foreach ($f in @('name - number copy.exe','telepites.bat','setup_browser.ps1','start_opencart_browser.ps1','VERSION')) {
+          foreach ($f in @('name - number copy.exe','telepites.bat','elevate_installer.ps1','setup_browser.ps1','start_opencart_browser.ps1','VERSION')) {
             Copy-Item -LiteralPath $f -Destination 'package'
           }
-          foreach ($f in @('main.go','main_test.go','version_test.go','platform_windows.go','platform_other.go','go.mod','README.md','CHANGELOG.md','VERSION','.gitignore','setup_browser.ps1','start_opencart_browser.ps1','telepites.bat')) {
+          foreach ($f in @('main.go','main_test.go','version_test.go','platform_windows.go','platform_other.go','go.mod','README.md','CHANGELOG.md','VERSION','.gitignore','setup_browser.ps1','start_opencart_browser.ps1','telepites.bat','elevate_installer.ps1')) {
             Copy-Item -LiteralPath $f -Destination 'package/source'
           }
           Copy-Item -Path '.github/workflows/*.yml' -Destination 'package/source/.github/workflows/'
+          Copy-Item -LiteralPath 'tests/test_installer_elevation.ps1' -Destination 'package/source/tests'
           Copy-Item -LiteralPath 'tests/test_installer_windows.ps1' -Destination 'package/source/tests'
           Copy-Item -LiteralPath 'tests/order_name_cases.js' -Destination 'package/source/tests'
           Compress-Archive -Path 'package/*' -DestinationPath $env:RELEASE_ZIP -CompressionLevel Optimal -Force
           Expand-Archive -LiteralPath $env:RELEASE_ZIP -DestinationPath 'release-verify' -Force
-          foreach ($f in @('name - number copy.exe','telepites.bat','setup_browser.ps1','start_opencart_browser.ps1','VERSION','source/main.go','source/README.md','source/VERSION','source/version_test.go','source/tests/order_name_cases.js')) {
+          foreach ($f in @('name - number copy.exe','telepites.bat','elevate_installer.ps1','setup_browser.ps1','start_opencart_browser.ps1','VERSION','source/main.go','source/elevate_installer.ps1','source/tests/test_installer_elevation.ps1','source/README.md','source/VERSION','source/version_test.go','source/tests/order_name_cases.js')) {
             if (-not (Test-Path -LiteralPath (Join-Path 'release-verify' $f) -PathType Leaf)) { throw "ZIP missing $f" }
           }
           $zipTag = (Get-Content -Raw 'release-verify/VERSION').Trim()
@@ -133,7 +134,9 @@ jobs:
           - Automatikus Brave / Chrome / Edge észlelés, 9222 / 9223 port, dedikált CDP-profil, Start/Asztal/Windows indulási parancsikonok.
           - A felhasználó a többnyelvű rendelésválasztót és névkiolvasást ellenőrizte saját gépén.
           - Az új telepítő a normál felhasználói kontextusban valódi CDP-elérést ellenőriz; hiba esetén nem ad sikeres telepítést.
-          - A másik Windows-gépes telepítés ellenőrzése még hátravan; a korábbi stabil és RC mentések megmaradnak.
+          - Stabil v1.1.8: speciális útvonalak adatként történő továbbítása a valódi UAC-emelésen és a CMD-határon.
+          - A gépi telepítés után megmarad a normál felhasználói CDP-ellenőrzés és az általános alkalmazásfókusz visszaadása.
+          - Útvonal-, telepítő-, CDP-, Go- és JavaScript-regressziós tesztek; a korábbi kiadások megmaradnak.
           "@
           Set-Content -LiteralPath 'release-notes.md' -Value $notes -Encoding utf8
           $args = @('release','create',$tag,'name - number copy.exe',$zip,'--title',"Név és rendelésszám másoló $tag",'--notes-file','release-notes.md','--target','main')

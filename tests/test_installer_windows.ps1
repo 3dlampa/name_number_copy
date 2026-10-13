@@ -1,5 +1,6 @@
 $ErrorActionPreference = 'Stop'
 $root = (Get-Location).Path
+& (Join-Path $root 'tests/test_installer_elevation.ps1')
 $batPath = Join-Path $root 'telepites.bat'
 $exeSource = Join-Path $root 'name - number copy.exe'
 $runnerRoot = Join-Path $env:RUNNER_TEMP 'name number copy teszt - ékezet és spaces'
@@ -19,7 +20,7 @@ $bytes = [IO.File]::ReadAllBytes($batPath)
 $text = [Text.Encoding]::UTF8.GetString($bytes)
 if ($text -match '(?<!\r)\n') { throw 'Telepito BAT nem CRLF' }
 if ($text -notmatch 'Telepitesi mappa: ') { throw 'Telepitesi mappa kerdes hianyzik' }
-foreach ($f in @('setup_browser.ps1', 'start_opencart_browser.ps1')) {
+foreach ($f in @('setup_browser.ps1', 'start_opencart_browser.ps1', 'elevate_installer.ps1')) {
     $b = [IO.File]::ReadAllBytes((Join-Path $root $f))
     if ($b.Length -lt 1000 -or $b[0] -ne 239 -or $b[1] -ne 187 -or $b[2] -ne 191) { throw "PowerShell 5.1 UTF8 BOM missing: $f" }
 }
@@ -81,7 +82,7 @@ try {
     if ($shortcutBackups.Count -lt 2) { throw 'Shortcut backup missing' }
 
     # Same-source-destination directory should still reconfigure browsers safely.
-    foreach ($f in @('telepites.bat','setup_browser.ps1','start_opencart_browser.ps1')) {
+    foreach ($f in @('telepites.bat','elevate_installer.ps1','setup_browser.ps1','start_opencart_browser.ps1')) {
         Copy-Item -LiteralPath (Join-Path $root $f) -Destination (Join-Path $destDir $f) -Force
     }
     Push-Location $destDir
@@ -108,14 +109,19 @@ try {
     $starter = Join-Path $destDir 'start_opencart_browser.ps1'
     $fakeProfile = Join-Path $runnerRoot 'FakeLoggedInUser'
     New-Item -ItemType Directory -Force -Path $fakeProfile | Out-Null
+    # Keep existing live browsers intact. Use one free supported CDP port.
+    $busyPorts = @([Net.NetworkInformation.IPGlobalProperties]::GetIPGlobalProperties().GetActiveTcpListeners() | ForEach-Object Port)
+    $testPort = if ($busyPorts -notcontains 9222) { 9222 } elseif ($busyPorts -notcontains 9223) { 9223 } else { throw 'No free supported CDP port for isolated tests; leave live browsers running.' }
+    $testBrowser = if ($testPort -eq 9222) { 'Brave' } else { 'Chrome' }
     # No browser port: check-only must FAIL, not report a false installation success.
-    & "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -ExecutionPolicy Bypass -File $starter -Browser Brave -CheckOnly -TestUserRoot $fakeProfile *> $null
+    & "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -ExecutionPolicy Bypass -File $starter -Browser $testBrowser -CheckOnly -TestUserRoot $fakeProfile *> $null
     if ($LASTEXITCODE -eq 0) { throw 'Browser launcher accepted a missing CDP endpoint' }
 
     # Mock CDP endpoint returns /json/version and /json/list, testing the SAME
     # conditions that the installer verifies after normal-user startup.
     $server = Start-Job -ScriptBlock {
-        $tcp = [System.Net.Sockets.TcpListener]::new([Net.IPAddress]::Loopback, 9222)
+        param([int]$testPort)
+        $tcp = [System.Net.Sockets.TcpListener]::new([Net.IPAddress]::Loopback, $testPort)
         $tcp.Start()
         try {
             # A ket CDP kerest kiszolgaljuk, utana a tesztszerver MAGATOL kilep.
@@ -129,7 +135,7 @@ try {
                     $count = $stream.Read($data,0,$data.Length)
                     $req = [Text.Encoding]::ASCII.GetString($data,0,$count)
                     $body = if ($req -match '/json/version') {
-                        '{"Browser":"Brave/test","webSocketDebuggerUrl":"ws://127.0.0.1:9222/devtools/browser/1"}'
+                        '{"Browser":"Chromium/test","webSocketDebuggerUrl":"ws://127.0.0.1:' + $testPort + '/devtools/browser/1"}'
                     } else { '[]' }
                     $payload = [Text.Encoding]::UTF8.GetBytes($body)
                     $CRLF = [string][char]13 + [char]10
@@ -142,10 +148,10 @@ try {
                 }
             }
         } finally { $tcp.Stop() }
-    }
+    } -ArgumentList $testPort
     try {
         Start-Sleep -Seconds 2
-        & "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -ExecutionPolicy Bypass -File $starter -Browser Brave -CheckOnly -TestUserRoot $fakeProfile
+        & "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -ExecutionPolicy Bypass -File $starter -Browser $testBrowser -CheckOnly -TestUserRoot $fakeProfile
         if ($LASTEXITCODE -ne 0) { throw 'CDP live-port verification rejected a valid port' }
     } finally {
         Stop-Job $server -ErrorAction SilentlyContinue
