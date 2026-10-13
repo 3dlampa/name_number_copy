@@ -1,3 +1,11 @@
+## 2026-10-13 – v1.1.7-rc.1 (utolsó aktív alkalmazás fókuszának visszaállítása)
+
+- Több rendelés választóablakának használata után az eredetileg előtérben lévő **bármely** alkalmazás kapja vissza a fókuszt; semmilyen programnévhez nem kötött.
+- Korábbi fókusz visszaállítása közvetlenül a konzol lezárása előtt, majd szükség esetén a bezárás után is.
+- Win32 `SetForegroundWindow` sikertelenségekor `AttachThreadInput` + `BringWindowToTop` tartalék; inputszálak azonnali szétkapcsolásával, érvénytelen HWND-k kizárásával.
+- Az egy rendeléses láthatatlan működés változatlan. Böngészőindító, telepítő, rendeléskinyerés, választási billentyűk és vágólapformátum nem változik.
+- Kiegészítő Go regressziós teszt az érvénytelen HWND-k biztonságos kezelésére. A Windows CI és Release tesztek után valós fókuszpróba szükséges.
+
 ## 2026-10-12 – v1.1.6-rc.1 (adminisztrátori telepítésből automatikus, normál felhasználói CDP)
 
 - A második Windows-gépen a v1.1.5-rc.1 `VERIFY_ADMIN` ága a `-CheckOnly` paraméterrel ellenőrizte a 9222-es portot, de a Brave indítását kihagyta. Ez bizonyított telepítőhiba volt, nem függőség- vagy OpenCart-hiba.

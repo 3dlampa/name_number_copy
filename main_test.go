@@ -178,3 +178,16 @@ func TestExtractJS(t *testing.T) {
 		}
 	}
 }
+// TestForegroundRestoreSafety verifies that invalid/no previous HWND never
+// steals focus; usable on Windows CI and other OS builds.
+func TestForegroundRestoreSafety(t *testing.T) {
+	before := getForegroundWindow()
+	restoreForeground(0)
+	restoreForeground(^uintptr(0))
+	if got := getForegroundWindow(); got != before {
+		t.Fatalf("invalid HWND must not change foreground: before=%x, got=%x", before, got)
+	}
+	if before != 0 {
+		restoreForeground(before)
+	}
+}

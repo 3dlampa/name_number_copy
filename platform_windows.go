@@ -26,6 +26,11 @@ var (
 	procGetConsoleWindow    = kernel32.NewProc("GetConsoleWindow")
 	procGetForegroundWindow = user32.NewProc("GetForegroundWindow")
 	procSetForegroundWindow = user32.NewProc("SetForegroundWindow")
+	procGetWindowThreadID   = user32.NewProc("GetWindowThreadProcessId")
+	procGetCurrentThreadID  = kernel32.NewProc("GetCurrentThreadId")
+	procAttachThreadInput   = user32.NewProc("AttachThreadInput")
+	procBringWindowToTop    = user32.NewProc("BringWindowToTop")
+	procIsWindow            = user32.NewProc("IsWindow")
 	procShowWindow          = user32.NewProc("ShowWindow")
 	procOpenClipboard       = user32.NewProc("OpenClipboard")
 	procCloseClipboard      = user32.NewProc("CloseClipboard")
@@ -50,11 +55,53 @@ var consoleIn uintptr
 var consoleOut uintptr
 
 func getForegroundWindow() uintptr { h, _, _ := procGetForegroundWindow.Call(); return h }
+
+// A választó előtt aktív, tetszőleges Windows-ablakot aktiváljuk újra.
+// A SetForegroundWindow hívást a Windows előtér-aktiválási szabályai
+// időnként letiltják. Ilyenkor rövid időre összekapcsoljuk az
+// inputszálakat, majd minden kapcsolatot visszabontunk.
 func restoreForeground(hwnd uintptr) {
 	if hwnd == 0 {
 		return
 	}
-	// Fókusz-visszaállítás CSAK akkor, ha előtte választó nyílt.
+	valid, _, _ := procIsWindow.Call(hwnd)
+	if valid == 0 || getForegroundWindow() == hwnd {
+		return
+	}
+	procSetForegroundWindow.Call(hwnd)
+	if getForegroundWindow() == hwnd {
+		return
+	}
+
+	// Ez csak a többrendeléses konzolválasztó lezárásakor fut.
+	// Nem állítunk fókuszt alkalmazásnév alapján és nem aktiváljuk a böngészőt.
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+	currentThread, _, _ := procGetCurrentThreadID.Call()
+	targetThread, _, _ := procGetWindowThreadID.Call(hwnd, 0)
+	foreground := getForegroundWindow()
+	foregroundThread, _, _ := procGetWindowThreadID.Call(foreground, 0)
+	attach := func(other uintptr) bool {
+		if other == 0 || other == currentThread {
+			return false
+		}
+		ok, _, _ := procAttachThreadInput.Call(currentThread, other, 1)
+		return ok != 0
+	}
+	attachedForeground := attach(foregroundThread)
+	attachedTarget := false
+	if targetThread != foregroundThread {
+		attachedTarget = attach(targetThread)
+	}
+	defer func() {
+		if attachedTarget {
+			procAttachThreadInput.Call(currentThread, targetThread, 0)
+		}
+		if attachedForeground {
+			procAttachThreadInput.Call(currentThread, foregroundThread, 0)
+		}
+	}()
+	procBringWindowToTop.Call(hwnd)
 	procSetForegroundWindow.Call(hwnd)
 }
 func openChoiceConsole() error {

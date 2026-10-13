@@ -1,6 +1,6 @@
 # Név és rendelésszám vágólapra másoló
 
-**Aktuális kiadás (EXE és telepítő):** `v1.1.6-rc.1`  
+**Aktuális kiadás (EXE és telepítő):** `v1.1.7-rc.1`  
 **Verzióforrás:** `VERSION` (az EXE-be beágyazva, a Release tag/ZIP ezt ellenőrzi)  
 **Platform:** Windows 11 x64  
 **Programfájl:** `name - number copy.exe`
@@ -137,3 +137,11 @@ Az EXE, a `VERSION` fájl, a kiadási Git-tag, a Release címe, a ZIP neve és a
 - A sikerhez ténylegesen válaszolnia kell a `/json/version` és `/json/list` CDP-végpontnak. Hiba esetén STOP és hibanapló.
 - A felhasználó által igazolt `v1.1.4` stabil EXE rendelésválasztója, névkinyerése, fókuszkezelése és vágólapformátuma **változatlan**.
 - RC tesztkiadás: a külön Windows-fiókos/valós Brave indítás gyakorlati visszaellenőrzése szükséges a hibás gépen.
+
+## v1.1.7-rc.1 – általános alkalmazásfókusz visszaállítása
+
+- Két vagy több megnyitott rendelésnél a választó előtt aktív **bármely Windows-ablak** kerül előtérbe a kiválasztás, másolás vagy Esc utáni bezáráskor (nem csak Illustrator vagy Photoshop).
+- A Windows időnként blokkolja a `SetForegroundWindow` hívást. Biztonságos Win32 `AttachThreadInput` tartalék állítja vissza a korábban aktív ablakot; csak érvényes ablakra és a konzolválasztó futása után.
+- A fókuszvisszaállítás most először még a `FreeConsole` hívás előtt történik, majd a konzol bezárását követően szükség esetén ellenőrzötten újrapróbálja.
+- **Egyetlen rendelésnél változatlan** az azonnali, konzol nélküli vágólapmásolás, fókuszváltás nélkül.
+- Az összes többi működés (vevőnév, RO/HU/SK/CZ, SOS, portok, telepítő, böngészőprofilok) változatlan. A tesztkiadás a felhasználó Windows-ablakainak valós kipróbálásáig RC.

@@ -335,11 +335,19 @@ func run() error {
 		populateOrder(&orders[i])
 	}
 	previousWindow := getForegroundWindow()
-	defer restoreForeground(previousWindow)
 	if err := openChoiceConsole(); err != nil {
 		return fmt.Errorf("választó konzol: %w", err)
 	}
-	defer closeChoiceConsole()
+	// A konzolból érkező billentyűesemény után még a FreeConsole előtt
+	// visszaadjuk a fókuszt az eredeti ablaknak. A bezárás után egyszer
+	// ellenőrizzük, hogy a Windows tényleg ott hagyta-e.
+	defer func() {
+		restoreForeground(previousWindow)
+		closeChoiceConsole()
+		if previousWindow != 0 && getForegroundWindow() != previousWindow {
+			restoreForeground(previousWindow)
+		}
+	}()
 	writeChoiceConsole("NYITOTT RENDELÉSEK\r\n\r\n")
 	for i, o := range orders {
 		code := ""
