@@ -226,6 +226,7 @@ try {
 
     & (Join-Path $root 'tests/test_native_browser_windows.ps1')
     & (Join-Path $root 'tests/test_installer_consent_uninstall.ps1')
+    & (Join-Path $root 'tests/test_uninstall_bat_windows.ps1')
     Write-Host 'PASS: all-user shortcuts/startup, Brave/Chrome/Edge, Edge-only Win11, per-user profile, no new backups, legacy cleanup, unrelated files retained, hash, no-browser STOP, same-path, Unicode, CRLF.'
 } finally {
     Remove-Item Env:NNC_TEST_SKIP_LAUNCH -ErrorAction SilentlyContinue

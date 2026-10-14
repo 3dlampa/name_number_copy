@@ -1,3 +1,9 @@
+## v1.1.11 – 2026-10-14
+
+- Az eltávolító saját BAT-fájljának törlése után helyesen, 0 kilépési kóddal fejeződik be; nincs „The batch file cannot be found” hiba.
+- Valódi BAT-belépési teszt közvetlen admin és mockolt UAC útvonalon, önmaga törlésével; megszakított UAC esetén érintetlen telepítés.
+- A v1.1.10 összes telepítő-, natív indító-, diagnosztikai és működésmegőrző javítását tartalmazza.
+
 ## v1.1.10 – 2026-10-14
 
 - Telepítés előtti tájékoztató és jóváhagyás; külön, alapból kikapcsolt automatikus böngészőindítás, frissítéskor kikapcsolható.

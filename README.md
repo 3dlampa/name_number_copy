@@ -1,23 +1,24 @@
 # Név és rendelésszám vágólapra másoló
 
-**Aktuális kiadás (EXE és telepítő):** `v1.1.10`
+**Aktuális kiadás (EXE és telepítő):** `v1.1.11`
 **Verzióforrás:** `VERSION` (az EXE-be beágyazva, a Release tag/ZIP ezt ellenőrzi)  
 **Platform:** Windows 11 x64  
 **Programfájl:** `name - number copy.exe`
 
-## v1.1.10: átlátható telepítés, natív böngészőindító, eltávolítás
+## v1.1.11: átlátható telepítés, natív böngészőindító, eltávolítás
 
 - A telepítő minden módosítást előre jelez; interaktív jóváhagyás előtt nem ír a célmappába vagy a közös indítómappákba. A böngésző automatikus indítása külön választható, alapból kikapcsolva.
 - A közös Asztal/Start menü/Startup ikonok közvetlenül az EXE `--start-browser` módját használják. Böngészőindításkor nincs PowerShell-folyamat, kódolt parancs vagy végrehajtási házirend-kapcsoló. A korábbi PS1 belépési pont kompatibilitási wrapper marad.
 - Az UAC-emelés látható `-File` scriptet használ. A Base64 paraméter csak JSON-adatot tartalmaz; útvonal nem válik PowerShell-kóddá. A telepítő és eltávolító a folyamatára korlátozott PowerShell `Bypass` kapcsolót használ, nem állít át tartós házirendet és nem módosítja a vírusvédelmet.
 - Ha eleve rendszergazdaként indítod, a böngésző továbbra is a bejelentkezett felhasználó normál jogával indul. Az ezt biztosító ideiglenes Windows-feladat látható, és végül törlődik; normál telepítésnél nincs rá szükség.
 - Megmarad a Brave/Chrome/Edge felismerés, a 9222/9223 CDP-port, a külön felhasználói profil és a korábbi OpenCart-profil újrahasználata. A natív indító csak a loopback végpontokat használja, proxy és átirányítás nélkül, és mindkét CDP-végpontot ellenőrzi.
+- A v1.1.11 az eltávolító befejezését is ellenőrzi: saját BAT-fájljának törlése után nem jelent hibás kilépési kódot. Az eltávolítót dupla kattintással vagy a Start menü ikonjával indítsd; parancssorból `cmd /d /c eltavolitas.bat` külön CMD-folyamatban fusson.
 - Eltávolítás: `eltavolitas.bat` a telepítési mappában, vagy a Start menü `OpenCart Rendelesmasolo` eltávolítója. Csak a telepített saját fájlokat és ténylegesen ide mutató parancsikonokat törli. Más fájlokat, böngészőket és profilokat megőriz. Zárd be az OpenCart-böngészőt, majd a normál böngészőikonnal térj vissza; a külön profilt saját adataid miatt megtartjuk.
 - Adatkezelés/használat: [HASZNALATI_FELTETELEK.txt](HASZNALATI_FELTETELEK.txt). Nincs telemetria, külső adatküldés, programletöltés vagy automatikus frissítés.
 - A harmadik gépen látott normál jogosultságú indítás külön szakaszjelzéseket kap. A natív CDP-várakozás teljes határideje 20 másodperc; közvetlen admin-telepítésnél 30 másodperces ellenőrzés, feladatállapot/eredménykód és naplóútvonal jelzi a hibát. Az indítóikon már EXE-t futtat, így ezen az útvonalon nem nyílik üres PowerShell/Terminal ablak. A másik gép konkrét hibaoka a naplója nélkül még nem igazolt.
 - A másolás, névkiolvasás, SOS, országprefix, választó, fókuszvisszaadás és a záró kötőjel utáni szóköz változatlan.
 
-A módosítások a [Google szoftverirányelveinek](https://www.google.com/about/unwanted-software-policy.html) átláthatósági/eltávolíthatósági elveit követik. Az EXE hiteles kiadói aláírás nélkül készült; a Drive korábbi minősítésének pontos oka nem ismert, az új csomag elfogadását nem lehet garantálni. [Ellenőrzési jegyzőkönyv](docs/verification-v1.1.10.md).
+A módosítások a [Google szoftverirányelveinek](https://www.google.com/about/unwanted-software-policy.html) átláthatósági/eltávolíthatósági elveit követik. Az EXE hiteles kiadói aláírás nélkül készült; a Drive korábbi minősítésének pontos oka nem ismert, az új csomag elfogadását nem lehet garantálni. [Ellenőrzési jegyzőkönyv](docs/verification-v1.1.11.md).
 
 ## Működés
 

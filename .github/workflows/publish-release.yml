@@ -73,7 +73,7 @@ jobs:
       - name: Build standalone Windows GUI EXE
         shell: pwsh
         run: go build -trimpath -ldflags '-H windowsgui -s -w' -o 'name - number copy.exe' .
-      - name: Test browser setup and Windows installer
+      - name: Test browser setup, Windows installer and uninstall BAT
         shell: pwsh
         run: ./tests/test_installer_windows.ps1
       - name: Assemble and verify full ZIP
@@ -92,7 +92,7 @@ jobs:
           }
           Compress-Archive -Path 'package/*' -DestinationPath $env:RELEASE_ZIP -CompressionLevel Optimal -Force
           Expand-Archive -LiteralPath $env:RELEASE_ZIP -DestinationPath 'release-verify' -Force
-          foreach ($f in @('name - number copy.exe','telepites.bat','elevate_installer.ps1','setup_browser.ps1','start_opencart_browser.ps1','VERSION','source/main.go','source/elevate_installer.ps1','source/tests/test_installer_elevation.ps1','source/README.md','source/VERSION','source/version_test.go','source/cdp_fragment_test.go','source/tests/order_name_cases.js','source/docs/verification-v1.1.10.md','installer_common.ps1','uninstall.ps1','eltavolitas.bat','HASZNALATI_FELTETELEK.txt','source/browser_launcher.go','source/browser_windows.go','source/browser_other.go','source/browser_launcher_test.go','source/tests/test_installer_consent_uninstall.ps1','source/tests/installer_test_helpers.ps1')) {
+          foreach ($f in @('name - number copy.exe','telepites.bat','elevate_installer.ps1','setup_browser.ps1','start_opencart_browser.ps1','VERSION','source/main.go','source/elevate_installer.ps1','source/tests/test_installer_elevation.ps1','source/README.md','source/VERSION','source/version_test.go','source/cdp_fragment_test.go','source/tests/order_name_cases.js','source/docs/verification-v1.1.11.md','installer_common.ps1','uninstall.ps1','eltavolitas.bat','HASZNALATI_FELTETELEK.txt','source/browser_launcher.go','source/browser_windows.go','source/browser_other.go','source/browser_launcher_test.go','source/tests/test_installer_consent_uninstall.ps1','source/tests/installer_test_helpers.ps1')) {
             if (-not (Test-Path -LiteralPath (Join-Path 'release-verify' $f) -PathType Leaf)) { throw "ZIP missing $f" }
           }
           $zipTag = (Get-Content -Raw 'release-verify/VERSION').Trim()
@@ -130,9 +130,9 @@ jobs:
           - Telepítés előtti tájékoztatás és jóváhagyás, külön választható automatikus böngészőindítás (alapból kikapcsolva).
           - Natív EXE böngészőindító, közvetlen Asztal/Start menü/Startup ikonok; nincs PowerShell a szokásos böngészőindításban.
           - Olvasható, látható UAC -File emelés; csak az útvonaladat kódolt, nincs EncodedCommand. Közvetlen admin-telepítéskor látható, ideiglenes Limited/InteractiveToken feladat, végén törölve.
-          - Saját eltávolító és használati/adatkezelési tájékoztató; más fájlok, parancsikonok és böngészőprofilok megőrzése.
+          - Saját eltávolító valódi BAT/UAC belépési teszttel: önmaga törlése után is helyes 0 kilépési kód. Használati/adatkezelési tájékoztató; más fájlok, parancsikonok és böngészőprofilok megőrzése.
           - Megmarad a backup nélküli frissítés és a régi saját backupok célzott törlése, a Brave/Chrome/Edge és régi profilok felismerése, a CDP-kapcsolat, a másolás, választó, fókuszvisszaadás, SOS és az utolsó kötőjel utáni szóköz.
-          - Go-, JavaScript-, telepítő-, útvonal-, CDP-, beleegyezés- és eltávolítási regressziós tesztek; részletek a csomag source/docs/verification-v1.1.10.md fájljában.
+          - Go-, JavaScript-, telepítő-, útvonal-, CDP-, beleegyezés- és eltávolítási regressziós tesztek; részletek a csomag source/docs/verification-v1.1.11.md fájljában.
           - Használat/adatkezelés: a csomag HASZNALATI_FELTETELEK.txt fájlja. Nincs telemetria vagy külső programletöltés.
           - A csomag nincs hiteles kiadói kódaláírással ellátva. A változtatások a Google átláthatósági és eltávolíthatósági elveit követik; a Drive elfogadása nem garantálható, korábbi tiltásának konkrét oka nem ismert.
           "@
