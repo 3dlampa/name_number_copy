@@ -134,6 +134,7 @@ jobs:
           - A telepítő eltávolítja a saját korábbi backupjait a célmappából, Asztalról, Start menüből és Indítópultból, így megszünteti a backup megnyitásából eredő „Alkalmazás kiválasztása” ablakot.
           - Az utolsó kötőjel után pontosan egy szóköz kerül a másolt szövegbe minden webshopnál, SOS esetén is.
           - Megmarad az egy rendeléses csendes másolás, a több rendeléses választó, a fókuszvisszaadás, a többnyelvű névkiolvasás és a Brave/Chrome/Edge CDP-indítás.
+          - A korábban helyben ellenőrzött 4 MiB CDP-üzenetkorlát és töredéksorrend-kezelés a kiadási forrásba és a teljes ZIP-be is bekerült a regressziós teszttel.
           - Go-, JavaScript-, telepítő-, UAC-útvonal- és CDP-regressziós tesztek; a korábbi kiadások megmaradnak.
           "@
           Set-Content -LiteralPath 'release-notes.md' -Value $notes -Encoding utf8

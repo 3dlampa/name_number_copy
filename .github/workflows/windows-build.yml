@@ -9,7 +9,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 2
+          fetch-depth: 0
       - uses: actions/setup-go@v5
         with:
           go-version: '1.23'
@@ -27,7 +27,13 @@ jobs:
             $meaningful = @($changed | Where-Object { $_ -match '^(.*\.go|.*\.ps1|.*\.bat)$' })
             $versionChanged = $changed -contains 'VERSION'
             if ($meaningful.Count -gt 0 -and -not $versionChanged) {
-              throw 'Executable or installer changed without a VERSION patch bump.'
+              # A release may need several commits before publication. Once a
+              # version is tagged, runtime changes must use the next PATCH.
+              $publishedTag = @(git tag --list $current)
+              if ($publishedTag.Count -gt 0) {
+                throw 'Published executable or installer changed without a VERSION patch bump.'
+              }
+              Write-Host "Completing unpublished release $current; publish workflow checks the next PATCH."
             }
             if ($versionChanged) {
               $previous = git show 'HEAD^:VERSION' 2>$null

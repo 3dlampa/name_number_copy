@@ -4,6 +4,7 @@
 - Frissítéskor törli a saját korábbi, pontosan azonosított backupfájljait a célmappából, a közös Asztalról, Start menüből és Indítópultból. Az Indítópultban maradt `.lnk.backup_...` fájl okozta az „Alkalmazás kiválasztása” ablakot; más program fájljai megmaradnak.
 - A vágólapra másolt szöveg utolsó kötőjele után pontosan egy szóköz kerül, minden webshopnál, normál/SOS és egy/több rendeléses másoláskor, a meglévő közös formázóban.
 - Megmarad az EXE staging cseréje, a scriptmásolás ellenőrzése, a gépi parancsikonok, a normál felhasználói CDP-ellenőrzés, a fókuszkezelés és a biztonságos UAC-útvonalátadás.
+- A korábban helyben már ellenőrzött CDP-töredékkezelés is bekerül a kiadási forrásba és a ZIP-be a teljes regressziós tesztjével: összesen 4 MiB üzenetkorlát, méretellenőrzés memóriafoglalás előtt és szabályos folytatókeret-sorrend.
 - Regressziós tesztek: régi backupok takarítása, backup nélküli ismételt és azonos mappás telepítés, idegen fájlok és működő ikonok megőrzése, záró szóköz minden ország/SOS esetében.
 
 ## 2026-10-13 – v1.1.8 (stabil kiadás, UAC-útvonalkezelés)

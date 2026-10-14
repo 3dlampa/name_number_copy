@@ -8,6 +8,10 @@ A v1.1.9 nem készít backupot. A PowerShell setup közös takarítófüggvénye
 
 A meglévő formatValue közös formázó normál és SOS ága egy záró ASCII szóközt ad a szöveghez; mindkét másolási út ezt használja.
 
+A csomagellenőrzés kimutatta, hogy a korábban helyben javított és ellenőrzött CDP-töredékkezelés nem szerepelt a v1.1.8 GitHub-forrásában. A meglévő ellenőrzött implementáció CDP-része és eredeti regressziós tesztje bekerült a v1.1.9-be. A teljes Go-tesztcsomag ezután ismét sikeres: az összesített 4 MiB üzenetkorlát, a memóriafoglalás előtti méretellenőrzés, az üzenetsorrend és a ping/pong kezelés megőrzött.
+
+A GitHub build teljes tagelőzményt tölt le. A még ki nem adott verzió befejezhető több commitban; már tagelt verzióhoz továbbra is kötelező az új PATCH-szám. A publikálás továbbra is ellenőrzi az előző kiadáshoz képest pontosan egy PATCH-lépést, az aktuális main commitot és a két kötelező assetet. Korábbi commit vagy kiadás nincs átírva.
+
 ## Ellenőrzések
 
 - A módosított ország/SOS teszt az eredeti kódon 14 eltéréssel hibázott a hiányzó záró szóköz miatt.

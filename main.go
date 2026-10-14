@@ -397,6 +397,8 @@ func main() {
 }
 
 // ---- Mini WebSocket kliens: CDP Chrome/Brave Runtime.evaluate, külső DLL és csomag nélkül ----
+const maxCDPMessageSize = 4 << 20
+
 func cdpCommand(ctx context.Context, wsAddress, method string, params any, dest any) error {
 	return cdpCommandWithPortFilter(ctx, wsAddress, method, params, dest, func(p string) bool {
 		return p == "9222" || p == "9223"
@@ -457,8 +459,13 @@ func cdpCommandWithPortFilter(ctx context.Context, wsAddress, method string, par
 		return err
 	}
 	var message []byte
+	fragmented := false
 	for {
-		opcode, final, frame, err := readFrame(reader)
+		remaining := maxCDPMessageSize
+		if fragmented {
+			remaining -= len(message)
+		}
+		opcode, final, frame, err := readFrameWithLimit(reader, remaining)
 		if err != nil {
 			return err
 		}
@@ -473,13 +480,26 @@ func cdpCommandWithPortFilter(ctx context.Context, wsAddress, method string, par
 		case 10:
 			continue
 		case 1, 2:
+			if fragmented {
+				return errors.New("új CDP üzenet befejezetlen töredékek közben")
+			}
+			if len(frame) > maxCDPMessageSize {
+				return errors.New("túl nagy CDP válasz")
+			}
 			message = append(message[:0], frame...)
 		case 0:
+			if !fragmented {
+				return errors.New("CDP folytatókeret kezdő üzenet nélkül")
+			}
+			if len(frame) > maxCDPMessageSize-len(message) {
+				return errors.New("túl nagy CDP válasz")
+			}
 			message = append(message, frame...)
 		default:
 			continue
 		}
-		if !final {
+		fragmented = !final
+		if fragmented {
 			continue
 		}
 		var envelope struct {
@@ -544,6 +564,11 @@ func sendFrame(w io.Writer, opcode byte, payload []byte) error {
 	return err
 }
 func readFrame(r io.Reader) (opcode byte, final bool, payload []byte, err error) {
+	return readFrameWithLimit(r, maxCDPMessageSize)
+}
+
+// Control frames do not consume the pending data message's remaining budget.
+func readFrameWithLimit(r io.Reader, maxDataPayload int) (opcode byte, final bool, payload []byte, err error) {
 	var h [2]byte
 	if _, err = io.ReadFull(r, h[:]); err != nil {
 		return
@@ -562,7 +587,7 @@ func readFrame(r io.Reader) (opcode byte, final bool, payload []byte, err error)
 	if err != nil {
 		return
 	}
-	if n > 4<<20 {
+	if n > maxCDPMessageSize || (opcode <= 2 && (maxDataPayload < 0 || n > uint64(maxDataPayload))) {
 		err = errors.New("túl nagy CDP válasz")
 		return
 	}
