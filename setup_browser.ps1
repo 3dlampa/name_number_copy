@@ -7,7 +7,8 @@ param(
     [string]$EdgePath = '',
     [string]$TestRoot = '',
     [switch]$SkipLaunch,
-    [switch]$ForceNoBrowsers
+    [switch]$ForceNoBrowsers,
+    [ValidateSet('On','Off')][string]$AutoStart = 'Off'
 )
 
 Set-StrictMode -Version Latest
@@ -27,9 +28,10 @@ function Remove-InstallerBackups([string]$Directory, [string[]]$FileNames) {
 }
 
 $InstallDir = [IO.Path]::GetFullPath($InstallDir)
-$launcher = Join-Path $InstallDir 'start_opencart_browser.ps1'
+. (Join-Path $PSScriptRoot 'installer_common.ps1')
+$launcher = Join-Path $InstallDir 'name - number copy.exe'
 if (-not (Test-Path -LiteralPath $launcher -PathType Leaf)) {
-    throw 'A start_opencart_browser.ps1 hianyzik. Csomagold ki a teljes ZIP-et.'
+    throw 'A masolo EXE hianyzik. Csomagold ki a teljes ZIP-et.'
 }
 
 function Find-Browser([string]$Name, [string]$Override) {
@@ -79,21 +81,10 @@ $preferred = [string]$available[0]
 
 # A telepito SOHA nem a rendszergazda vagy masik konkret felhasznalo
 # Desktop/Startup/LOCALAPPDATA konyvtaraba telepit.
-if ($TestRoot) {
-    $commonDesktop = Join-Path $TestRoot 'PublicDesktop'
-    $commonPrograms = Join-Path $TestRoot 'CommonPrograms'
-    $commonStartup = Join-Path $TestRoot 'CommonStartup'
-} else {
-    $commonDesktop = [Environment]::GetFolderPath('CommonDesktopDirectory')
-    $commonPrograms = [Environment]::GetFolderPath('CommonPrograms')
-    $commonStartup = [Environment]::GetFolderPath('CommonStartup')
-    $commonData = [Environment]::GetFolderPath('CommonApplicationData')
-    if (-not $commonData) { $commonData = $env:ProgramData }
-    if (-not $commonDesktop -and $env:PUBLIC) { $commonDesktop = Join-Path $env:PUBLIC 'Desktop' }
-    if (-not $commonPrograms -and $commonData) { $commonPrograms = Join-Path $commonData 'Microsoft\Windows\Start Menu\Programs' }
-    if (-not $commonStartup -and $commonPrograms) { $commonStartup = Join-Path $commonPrograms 'Startup' }
-}
-$startMenu = if ($commonPrograms) { Join-Path $commonPrograms 'OpenCart Rendelesmasolo' } else { '' }
+$locations = Get-InstallerLocations $TestRoot
+$commonDesktop = $locations.Desktop
+$startMenu = $locations.Menu
+$commonStartup = $locations.Startup
 foreach ($item in @(
     @{ Key = 'Kozos Asztal'; Path = $commonDesktop },
     @{ Key = 'Kozos Start menu'; Path = $startMenu },
@@ -122,6 +113,7 @@ $config = @{
     Primary = $preferred
     Browsers = $browsers
     UpdatedAt = (Get-Date).ToString('o')
+    AutoStart = ($AutoStart -eq 'On')
 }
 $configPath = Join-Path $InstallDir 'opencart_browser_config.json'
 $stamp = Get-Date -Format 'yyyyMMdd_HHmmss_fff'
@@ -134,12 +126,11 @@ try {
 }
 
 $wsh = New-Object -ComObject WScript.Shell
-$psExe = Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe'
 function Set-LauncherShortcut([string]$LinkPath, [string]$Browser, [string]$IconExe, [bool]$AutoStart = $false) {
     $link = $wsh.CreateShortcut($LinkPath)
-    $link.TargetPath = $psExe
-    $args = '-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File "' + $launcher + '" -Browser ' + $Browser
-    if ($AutoStart) { $args += ' -AutoStart' }
+    $link.TargetPath = $launcher
+    $args = '--start-browser ' + $Browser
+    if ($AutoStart) { $args += ' --autostart' }
     $link.Arguments = $args
     $link.WorkingDirectory = $InstallDir
     $link.IconLocation = "$IconExe,0"
@@ -153,7 +144,16 @@ foreach ($name in $available) {
     Set-LauncherShortcut (Join-Path $startMenu $label) $name $discovered[$name]
 }
 $startupLink = Join-Path $commonStartup 'OpenCart Rendelesmasolo - bongeszoinditas.lnk'
-Set-LauncherShortcut $startupLink 'Auto' $discovered[$preferred] $true
+if ($AutoStart -eq 'On') { Set-LauncherShortcut $startupLink 'Auto' $discovered[$preferred] $true }
+else { Remove-OwnedShortcut $startupLink $InstallDir }
+# Only fixed owned filenames can be removed by the uninstaller.
+$manifest = @{ Product = 'NameNumberCopy'; InstallDir = $InstallDir; Version = ([IO.File]::ReadAllText((Join-Path $InstallDir 'VERSION'))).Trim() }
+[IO.File]::WriteAllText((Join-Path $InstallDir 'installation_manifest.json'), ($manifest | ConvertTo-Json), (New-Object Text.UTF8Encoding($false)))
+$removeLink = $wsh.CreateShortcut((Join-Path $startMenu 'Nev es rendelesszam masolo eltavolitasa.lnk'))
+$removeLink.TargetPath = Join-Path $InstallDir 'eltavolitas.bat'
+$removeLink.WorkingDirectory = $InstallDir
+$removeLink.Description = 'Sajat masolo es inditoikonok eltavolitasa; bongeszo es profil megmarad'
+$removeLink.Save()
 
 Remove-InstallerBackups $InstallDir @('name - number copy.exe', 'opencart_browser_config.json', 'setup_browser.ps1', 'start_opencart_browser.ps1', 'elevate_installer.ps1')
 foreach ($directory in @($commonDesktop, $startMenu)) {
@@ -164,11 +164,11 @@ Remove-InstallerBackups $commonStartup @('OpenCart Rendelesmasolo - bongeszoindi
 # Emelt jogosultsagu telepitobol nem inditunk emelt szintu bongeszot.
 # Az OpenCart-bongeszo a kovetkezo Windows-bejelentkezesnel, a NORMAL
 # felhasznalo jogaval indul a CommonStartup parancsikonbol.
-if (-not $SkipLaunch) {
+if (-not $SkipLaunch -and $AutoStart -eq 'On') {
     Write-Host '[INFO] A bongeszo normal felhasznalokent a kovetkezo Windows-bejelentkezesnel indul.'
     Write-Host '[INFO] Most az OpenCart ikonra kattintva is elindithato normal joggal.'
 }
 Write-Host ("[OK] Gepi telepites: {0}" -f $preferred) -ForegroundColor Green
-Write-Host ("[OK] Osszes Windows-felhasznalo inditoja: {0}" -f $commonStartup)
+Write-Host ("[OK] Valasztott automatikus inditas: {0}" -f $AutoStart)
 Write-Host '[OK] A bongeszo adatmappaja az inditaskor felhasznalonkent kulon jon letre.'
 Write-Host '[INFO] Nincs sajat user/profil vagy OpenCart-bejelentkezes eltarolva a konfiguracioban.'

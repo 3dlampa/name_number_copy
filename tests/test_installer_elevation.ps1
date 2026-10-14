@@ -1,17 +1,19 @@
 ﻿$ErrorActionPreference = 'Stop'
 $root = (Get-Location).Path
+. (Join-Path $root 'tests/installer_test_helpers.ps1')
 $stage = Join-Path ([IO.Path]::GetTempPath()) ('nnc-elevation-' + [guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Path $stage | Out-Null
 $utf8 = New-Object Text.UTF8Encoding($true)
 $plainUtf8 = New-Object Text.UTF8Encoding($false)
 # Substitute only the OS privilege gate and RunAs call; execute the real
-# batch ingress, helper serialization, encoded bootstrap and CMD reentry.
+# batch ingress, helper serialization, readable -File worker and CMD reentry.
 $mock = @'
 function Start-Process {
     param($FilePath, $ArgumentList, $Verb, $WindowStyle, [switch]$Wait, [switch]$PassThru, $ErrorAction)
-    if ($Verb -ne 'RunAs' -or $WindowStyle -ne 'Hidden' -or -not $Wait -or -not $PassThru) { throw 'Elevation contract changed' }
+    if ($Verb -ne 'RunAs' -or $WindowStyle -ne 'Normal' -or -not $Wait -or -not $PassThru) { throw 'Elevation contract changed' }
     $expected = Join-Path ([Environment]::SystemDirectory) 'WindowsPowerShell\v1.0\powershell.exe'
     if ($FilePath -ne $expected) { throw 'Elevation executable changed' }
+    if ($ArgumentList -match '-EncodedCommand' -or $ArgumentList -notmatch '-File.*-Payload') { throw 'Readable elevation contract missing' }
     if ($env:NNC_CAPTURE_CANCEL -eq '1') { throw 'Simulated UAC cancellation' }
     $info = New-Object Diagnostics.ProcessStartInfo
     $info.FileName = $FilePath
@@ -64,8 +66,8 @@ endlocal & exit /b 1
         $stub = $stub.Replace([string][char]13, '').Replace([string][char]10, [Environment]::NewLine)
         [IO.File]::WriteAllText($installer, $prefix + $stub, $plainUtf8)
         $helper = [IO.File]::ReadAllText((Join-Path $root 'elevate_installer.ps1'), [Text.Encoding]::UTF8)
-        [IO.File]::WriteAllText((Join-Path $caseRoot 'elevate_installer.ps1'), $mock + [Environment]::NewLine + $helper, $utf8)
-        foreach ($fixture in @('name - number copy.exe','setup_browser.ps1','start_opencart_browser.ps1')) {
+        [IO.File]::WriteAllText((Join-Path $caseRoot 'elevate_installer.ps1'), $helper.Replace("`$ErrorActionPreference = 'Stop'", ($mock + [Environment]::NewLine + "`$ErrorActionPreference = 'Stop'")), $utf8)
+        foreach ($fixture in @('name - number copy.exe','setup_browser.ps1','start_opencart_browser.ps1','installer_common.ps1','uninstall.ps1','eltavolitas.bat','HASZNALATI_FELTETELEK.txt','VERSION')) {
             [IO.File]::WriteAllText((Join-Path $caseRoot $fixture), 'test fixture')
         }
         $env:NNC_CASE_INSTALLER = $installer
@@ -83,9 +85,17 @@ endlocal & exit /b 1
         $info.RedirectStandardOutput = $true
         $info.RedirectStandardError = $true
         $child = [Diagnostics.Process]::Start($info)
-        if (-not $case.Destination) { $child.StandardInput.WriteLine('C:\ordinary') }
+        $promptText = ''
+        if (-not $case.Destination) {
+            $promptText += Read-InstallerPrompt $child 'Telepitesi mappa: '
+            $child.StandardInput.WriteLine('C:\ordinary')
+            $promptText += Read-InstallerPrompt $child '(I/N, Enter=N): '
+            $child.StandardInput.WriteLine('N')
+            $promptText += Read-InstallerPrompt $child '(I/N): '
+            $child.StandardInput.WriteLine('I')
+        }
         $child.StandardInput.Close()
-        $stdout = $child.StandardOutput.ReadToEnd()
+        $stdout = $promptText + $child.StandardOutput.ReadToEnd()
         $stderr = $child.StandardError.ReadToEnd()
         $child.WaitForExit()
         $expectedCode = if ($case.Cancel -or $case.Code -ne 0) { 1 } else { 0 }
@@ -102,7 +112,7 @@ endlocal & exit /b 1
     }
     # Illegal Windows path characters must fail before requesting elevation.
     $bad = Join-Path $stage 'invalid.ps1'
-    [IO.File]::WriteAllText($bad, $mock + [Environment]::NewLine + $helper, $utf8)
+    [IO.File]::WriteAllText($bad, $helper.Replace("`$ErrorActionPreference = 'Stop'", ($mock + [Environment]::NewLine + "`$ErrorActionPreference = 'Stop'")), $utf8)
     $env:NNC_ELEVATE_INSTALLER = 'C:\invalid"path\telepites.bat'
     $env:NNC_ELEVATE_DESTINATION = 'C:\normal'
     $oldPreference = $ErrorActionPreference
@@ -110,7 +120,7 @@ endlocal & exit /b 1
     & (Join-Path ([Environment]::SystemDirectory) 'WindowsPowerShell\v1.0\powershell.exe') -NoProfile -File $bad 2>$null
     $ErrorActionPreference = $oldPreference
     if ($LASTEXITCODE -eq 0) { throw 'Invalid path accepted' }
-    Write-Host 'PASS: real BAT/helper/encoded bootstrap/CMD serialization; literal injection/Unicode/%/!/metacharacters; optional interactive destination; machine-stage flag; parent CDP continuation; child failure; cancellation; invalid path. RunAs mocked, no real UAC.'
+    Write-Host 'PASS: real BAT/helper/readable -File worker/CMD serialization; literal injection/Unicode/%/!/metacharacters; optional interactive destination; machine-stage flag; parent CDP continuation; child failure; cancellation; invalid path. RunAs mocked, no real UAC.'
 } finally {
     foreach ($name in $names) { [Environment]::SetEnvironmentVariable($name, $saved[$name], 'Process') }
 }

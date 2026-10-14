@@ -1,9 +1,23 @@
 # Név és rendelésszám vágólapra másoló
 
-**Aktuális kiadás (EXE és telepítő):** `v1.1.9`
+**Aktuális kiadás (EXE és telepítő):** `v1.1.10`
 **Verzióforrás:** `VERSION` (az EXE-be beágyazva, a Release tag/ZIP ezt ellenőrzi)  
 **Platform:** Windows 11 x64  
 **Programfájl:** `name - number copy.exe`
+
+## v1.1.10: átlátható telepítés, natív böngészőindító, eltávolítás
+
+- A telepítő minden módosítást előre jelez; interaktív jóváhagyás előtt nem ír a célmappába vagy a közös indítómappákba. A böngésző automatikus indítása külön választható, alapból kikapcsolva.
+- A közös Asztal/Start menü/Startup ikonok közvetlenül az EXE `--start-browser` módját használják. Böngészőindításkor nincs PowerShell-folyamat, kódolt parancs vagy végrehajtási házirend-kapcsoló. A korábbi PS1 belépési pont kompatibilitási wrapper marad.
+- Az UAC-emelés látható `-File` scriptet használ. A Base64 paraméter csak JSON-adatot tartalmaz; útvonal nem válik PowerShell-kóddá. A telepítő és eltávolító a folyamatára korlátozott PowerShell `Bypass` kapcsolót használ, nem állít át tartós házirendet és nem módosítja a vírusvédelmet.
+- Ha eleve rendszergazdaként indítod, a böngésző továbbra is a bejelentkezett felhasználó normál jogával indul. Az ezt biztosító ideiglenes Windows-feladat látható, és végül törlődik; normál telepítésnél nincs rá szükség.
+- Megmarad a Brave/Chrome/Edge felismerés, a 9222/9223 CDP-port, a külön felhasználói profil és a korábbi OpenCart-profil újrahasználata. A natív indító csak a loopback végpontokat használja, proxy és átirányítás nélkül, és mindkét CDP-végpontot ellenőrzi.
+- Eltávolítás: `eltavolitas.bat` a telepítési mappában, vagy a Start menü `OpenCart Rendelesmasolo` eltávolítója. Csak a telepített saját fájlokat és ténylegesen ide mutató parancsikonokat törli. Más fájlokat, böngészőket és profilokat megőriz. Zárd be az OpenCart-böngészőt, majd a normál böngészőikonnal térj vissza; a külön profilt saját adataid miatt megtartjuk.
+- Adatkezelés/használat: [HASZNALATI_FELTETELEK.txt](HASZNALATI_FELTETELEK.txt). Nincs telemetria, külső adatküldés, programletöltés vagy automatikus frissítés.
+- A harmadik gépen látott normál jogosultságú indítás külön szakaszjelzéseket kap. A natív CDP-várakozás teljes határideje 20 másodperc; közvetlen admin-telepítésnél 30 másodperces ellenőrzés, feladatállapot/eredménykód és naplóútvonal jelzi a hibát. Az indítóikon már EXE-t futtat, így ezen az útvonalon nem nyílik üres PowerShell/Terminal ablak. A másik gép konkrét hibaoka a naplója nélkül még nem igazolt.
+- A másolás, névkiolvasás, SOS, országprefix, választó, fókuszvisszaadás és a záró kötőjel utáni szóköz változatlan.
+
+A módosítások a [Google szoftverirányelveinek](https://www.google.com/about/unwanted-software-policy.html) átláthatósági/eltávolíthatósági elveit követik. Az EXE hiteles kiadói aláírás nélkül készült; a Drive korábbi minősítésének pontos oka nem ismert, az új csomag elfogadását nem lehet garantálni. [Ellenőrzési jegyzőkönyv](docs/verification-v1.1.10.md).
 
 ## Működés
 
@@ -42,10 +56,10 @@ Más mappa esetén egyszerűen gépeld be a teljes útvonalat, például `E:\Mun
 
 1. Zárd be a régi másoló EXE-t, ha még fut.
 2. Csomagold ki a ZIP-et, és indítsd a `telepites.bat`-ot. A program EXE-fájlja a BAT mellett legyen.
-3. Válassz telepítési helyet. A telepítő az EXE-t és a scripteket backup nélkül frissíti, a böngészőbeállításokat és a parancsikonokat szintén backup nélkül írja. A korábbi telepítő saját, ismert nevű `.backup_...` fájljait törli a célmappából, a közös Asztalról, a Start menüből és az Indítópultból.
+3. Válassz telepítési helyet, olvasd el a változtatásokat és a [használati tájékoztatót](HASZNALATI_FELTETELEK.txt), majd hagyd jóvá a telepítést. Az automatikus böngészőindítás külön I/N választás; Enter esetén kikapcsolva marad. Frissítéskor az N választás a régi saját automatikus indítót is eltávolítja. A telepítő az EXE-t és a scripteket backup nélkül frissíti, a böngészőbeállításokat és a parancsikonokat szintén backup nélkül írja. A korábbi telepítő saját, ismert nevű `.backup_...` fájljait törli a célmappából, a közös Asztalról, a Start menüből és az Indítópultból.
 4. Teszteld egy és két különböző nyitott rendelés mellett, lehetőleg aktív Illustrator ablakkal.
 
-Automatizált telepítéshez a célmappa első argumentumként is átadható: `telepites.bat "E:\Munka\Scriptek"`. Ez a mód nem kér billentyűbevitelt.
+Automatizált telepítéshez a célmappa első argumentumként is átadható: `telepites.bat "E:\Munka\Scriptek"`. Ez a mód nem kér billentyűbevitelt, és automatikus indítás nélkül telepít. Az automatikus indítás csak kifejezett `/autostart:on` második argumentummal engedélyezett: `telepites.bat "E:\Munka\Scriptek" /autostart:on`.
 
 **Fontos:** Ez a feltöltött hibás Go-alapú EXE működését reprodukáló/javító forrás, nem az eredeti elveszett forrásfájl visszafejtett, byte-pontos másolata. Mivel a Windows és az Illustrator nem érhető el a tesztkörnyezetben, a fókusz és a konzol valós viselkedését a felhasználó gépén is tesztelni kell. Hibák logja: `%TEMP%\name_number_copy_error.log`.
 
@@ -66,7 +80,7 @@ Az `-H windowsgui` szükséges, hogy egy rendelésnél ne nyíljon konzol. Az `A
 - CDP WebSocket csak localhost `9222`/`9223` porton engedélyezett.
 - Hibáknál nem ír ki felugró ablakot, helyette naplófájlba ír.
 
-## Browser autoconfiguration (v1.1.0-rc.1)
+## Korábbi böngészőbeállítás (v1.1.0-rc.1; történeti leírás)
 
 Az uj telepito felismeri a telepitett Brave es Google Chrome bongeszot. A Brave CDP-portja 9222; Chrome 9223. A felhasznalo Windows-alapertelmezett Brave/Chrome/Edge bongeszojet automatikusan preferalja (ha nincs, Brave, majd Chrome). Mindket telepitett bongeszohoz kulon inditoikon jon letre az Asztalon es a Start menuben. A preferalt bongeszo minden felhasznaloi Windows-bejelentkezeskor automatikusan elindul, ezert nem kell kezzel debug parancssori kapcsolokat irni.
 

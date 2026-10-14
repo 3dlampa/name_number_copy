@@ -1,3 +1,15 @@
+## v1.1.10 – 2026-10-14
+
+- Telepítés előtti tájékoztató és jóváhagyás; külön, alapból kikapcsolt automatikus böngészőindítás, frissítéskor kikapcsolható.
+- Közvetlen EXE böngészőindító: nincs PowerShell a bejelentkezési/Asztal/Start menü indításban. Megőrzött böngészőfelismerés, CDP és OpenCart-profilok.
+- Látható, olvasható UAC -File emelés, csak JSON-adat kódolva; megőrzött útvonalinjekció-védelem.
+- Látható, ideiglenes Limited/InteractiveToken feladat csak közvetlen admin-telepítéskor, végén törölve.
+- Saját eltávolító és használati/adatkezelési tájékoztató. Célzott törlés, idegen parancsikonok/fájlok és böngészőprofilok megőrzése.
+- Megőrzött backupmentesség, régi backupok célzott törlése, záró szóköz és változatlan másolási/fókuszlogika.
+- Indítási szakaszok visszajelzése és diagnosztikai napló; natív CDP határidő 20 s, admin-indítás ellenőrzési határidő 30 s, feladatállapot és hibakód.
+- Új regressziós tesztek: telepítés megszakítása írás nélkül, automatikus indítás engedélyezése/kikapcsolása, profilmegőrzés, két CDP-végpont, célzott eltávolítás.
+- Kódaláírás és a Google Drive elfogadása nem igazolt; a korábbi automatikus tiltás konkrét szabálya nem ismert.
+
 ## 2026-10-14 – v1.1.9 (stabil kiadás, backup nélküli telepítés és záró szóköz)
 
 - A telepítő nem készít többé EXE-, script-, konfiguráció- vagy parancsikon-backupot.

@@ -1,0 +1,37 @@
+Név és rendelésszám másoló – használati és adatkezelési tájékoztató
+
+Ez saját munkára készített, nem hivatalos OpenCart/Google/Adobe alkalmazás.
+Csak olyan webshop-adatokkal használd, amelyekhez jogosult vagy hozzáférni.
+A csomag nem tartalmaz más gyártótól származó telepítendő programot.
+
+A másoló a megnyitott OpenCart-rendeléslap ügyfélnevét, rendelésszámát,
+webshopját és SOS jelölését olvassa a helyi böngészőből, majd a kiválasztott
+adatot a Windows vágólapjára írja. Ezeket nem küldi külső szervernek.
+Nincs telemetria, reklám, távoli frissítés vagy külső programletöltés.
+A böngésző és a webshop saját adatkezelése továbbra is az adott szolgáltatóé.
+
+A telepítő a kiválasztott mappába másol, közös Asztal/Start menü ikonokat
+készít, és csak a választásod alapján állít be automatikus böngészőindítást.
+Ehhez Windows UAC szükséges. A PowerShell telepítőparancsai csak az adott
+folyamatban futnak; a Windows védelmét és tartós végrehajtási házirendjét
+nem módosítják. Nem készül backup; a korábbi saját telepítőbackupok törlődnek.
+
+A meglévő Brave/Chrome/Edge külön OpenCart-profillal indul. CDP a helyi
+127.0.0.1 címen, 9222/9223 porton működik; más helyi program is hozzáférhet.
+A szokásos böngészőprofil és az alapértelmezett böngésző nem változik.
+Közvetlen adminisztrátori telepítésnél egy látható, ideiglenes Windows-feladat
+indítja el a böngészőt a bejelentkezett felhasználó normál jogával, majd törlődik.
+
+Eltávolítás: Start menü > OpenCart Rendelesmasolo > eltávolítás,
+vagy az eltavolitas.bat a telepítési mappában. Az indítók és a másoló törlődnek;
+a böngésző és a bejelentkezéseket tartalmazó profil megmarad. Zárd be az
+OpenCart-böngészőt, majd a normál böngészőikon használatával térj vissza.
+Saját profiladatok: %LOCALAPPDATA%\NameNumberCopy\BrowserProfiles;
+korábbi telepítésnél OpenCartBraveDebug/OpenCartChromeDebug/OpenCartEdgeDebug.
+
+A programot használat előtt ellenőrizd saját munkafolyamatoddal.
+A Google Drive minősítéséről a Google dönt; ez a kiadás nem rendelkezik
+hiteles kiadói kódaláírással. A vírusellenőrzés eredménye a kiadási leírásban
+olvasható; az nem jelent minden körülményre szóló biztonsági garanciát.
+
+Irányelvek: https://www.google.com/about/unwanted-software-policy.html

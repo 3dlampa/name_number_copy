@@ -81,21 +81,18 @@ jobs:
         run: |
           $ErrorActionPreference = 'Stop'
           New-Item -ItemType Directory -Force -Path 'package/source/.github/workflows', 'package/source/tests' | Out-Null
-          foreach ($f in @('name - number copy.exe','telepites.bat','elevate_installer.ps1','setup_browser.ps1','start_opencart_browser.ps1','VERSION')) {
+          foreach ($f in @('name - number copy.exe','telepites.bat','elevate_installer.ps1','setup_browser.ps1','start_opencart_browser.ps1','installer_common.ps1','uninstall.ps1','eltavolitas.bat','HASZNALATI_FELTETELEK.txt','README.md','VERSION')) {
             Copy-Item -LiteralPath $f -Destination 'package'
           }
-          foreach ($f in @('main.go','main_test.go','cdp_fragment_test.go','version_test.go','platform_windows.go','platform_other.go','go.mod','README.md','CHANGELOG.md','VERSION','.gitignore','setup_browser.ps1','start_opencart_browser.ps1','telepites.bat','elevate_installer.ps1')) {
-            Copy-Item -LiteralPath $f -Destination 'package/source'
+          # Include every tracked source/test/doc file so new runtime files cannot be omitted.
+          foreach ($f in @(git ls-files)) {
+            $target = Join-Path 'package/source' $f
+            New-Item -ItemType Directory -Force -Path (Split-Path -Parent $target) | Out-Null
+            Copy-Item -LiteralPath $f -Destination $target
           }
-          Copy-Item -Path '.github/workflows/*.yml' -Destination 'package/source/.github/workflows/'
-          Copy-Item -LiteralPath 'tests/test_installer_elevation.ps1' -Destination 'package/source/tests'
-          Copy-Item -LiteralPath 'tests/test_installer_windows.ps1' -Destination 'package/source/tests'
-          Copy-Item -LiteralPath 'tests/order_name_cases.js' -Destination 'package/source/tests'
-          New-Item -ItemType Directory -Force -Path 'package/source/docs' | Out-Null
-          Copy-Item -LiteralPath 'docs/verification-v1.1.9.md' -Destination 'package/source/docs'
           Compress-Archive -Path 'package/*' -DestinationPath $env:RELEASE_ZIP -CompressionLevel Optimal -Force
           Expand-Archive -LiteralPath $env:RELEASE_ZIP -DestinationPath 'release-verify' -Force
-          foreach ($f in @('name - number copy.exe','telepites.bat','elevate_installer.ps1','setup_browser.ps1','start_opencart_browser.ps1','VERSION','source/main.go','source/elevate_installer.ps1','source/tests/test_installer_elevation.ps1','source/README.md','source/VERSION','source/version_test.go','source/cdp_fragment_test.go','source/tests/order_name_cases.js','source/docs/verification-v1.1.9.md')) {
+          foreach ($f in @('name - number copy.exe','telepites.bat','elevate_installer.ps1','setup_browser.ps1','start_opencart_browser.ps1','VERSION','source/main.go','source/elevate_installer.ps1','source/tests/test_installer_elevation.ps1','source/README.md','source/VERSION','source/version_test.go','source/cdp_fragment_test.go','source/tests/order_name_cases.js','source/docs/verification-v1.1.10.md','installer_common.ps1','uninstall.ps1','eltavolitas.bat','HASZNALATI_FELTETELEK.txt','source/browser_launcher.go','source/browser_windows.go','source/browser_other.go','source/browser_launcher_test.go','source/tests/test_installer_consent_uninstall.ps1','source/tests/installer_test_helpers.ps1')) {
             if (-not (Test-Path -LiteralPath (Join-Path 'release-verify' $f) -PathType Leaf)) { throw "ZIP missing $f" }
           }
           $zipTag = (Get-Content -Raw 'release-verify/VERSION').Trim()
@@ -130,12 +127,14 @@ jobs:
 
           - A program, VERSION, Release tag és a teljes ZIP verziója azonos: $tag
           - Standalone Windows EXE és teljes telepítő ZIP, a forrással és tesztekkel.
-          - Backup nélküli telepítés: nincs több EXE-, script-, konfiguráció- vagy parancsikon-mentés.
-          - A telepítő eltávolítja a saját korábbi backupjait a célmappából, Asztalról, Start menüből és Indítópultból, így megszünteti a backup megnyitásából eredő „Alkalmazás kiválasztása” ablakot.
-          - Az utolsó kötőjel után pontosan egy szóköz kerül a másolt szövegbe minden webshopnál, SOS esetén is.
-          - Megmarad az egy rendeléses csendes másolás, a több rendeléses választó, a fókuszvisszaadás, a többnyelvű névkiolvasás és a Brave/Chrome/Edge CDP-indítás.
-          - A korábban helyben ellenőrzött 4 MiB CDP-üzenetkorlát és töredéksorrend-kezelés a kiadási forrásba és a teljes ZIP-be is bekerült a regressziós teszttel.
-          - Go-, JavaScript-, telepítő-, UAC-útvonal- és CDP-regressziós tesztek; a korábbi kiadások megmaradnak.
+          - Telepítés előtti tájékoztatás és jóváhagyás, külön választható automatikus böngészőindítás (alapból kikapcsolva).
+          - Natív EXE böngészőindító, közvetlen Asztal/Start menü/Startup ikonok; nincs PowerShell a szokásos böngészőindításban.
+          - Olvasható, látható UAC -File emelés; csak az útvonaladat kódolt, nincs EncodedCommand. Közvetlen admin-telepítéskor látható, ideiglenes Limited/InteractiveToken feladat, végén törölve.
+          - Saját eltávolító és használati/adatkezelési tájékoztató; más fájlok, parancsikonok és böngészőprofilok megőrzése.
+          - Megmarad a backup nélküli frissítés és a régi saját backupok célzott törlése, a Brave/Chrome/Edge és régi profilok felismerése, a CDP-kapcsolat, a másolás, választó, fókuszvisszaadás, SOS és az utolsó kötőjel utáni szóköz.
+          - Go-, JavaScript-, telepítő-, útvonal-, CDP-, beleegyezés- és eltávolítási regressziós tesztek; részletek a csomag source/docs/verification-v1.1.10.md fájljában.
+          - Használat/adatkezelés: a csomag HASZNALATI_FELTETELEK.txt fájlja. Nincs telemetria vagy külső programletöltés.
+          - A csomag nincs hiteles kiadói kódaláírással ellátva. A változtatások a Google átláthatósági és eltávolíthatósági elveit követik; a Drive elfogadása nem garantálható, korábbi tiltásának konkrét oka nem ismert.
           "@
           Set-Content -LiteralPath 'release-notes.md' -Value $notes -Encoding utf8
           $args = @('release','create',$tag,'name - number copy.exe',$zip,'--title',"Név és rendelésszám másoló $tag",'--notes-file','release-notes.md','--target','main')

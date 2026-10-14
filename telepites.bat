@@ -17,6 +17,11 @@ if not exist "%SOURCE%" goto :MISSING_SOURCE
 if not exist "%SCRIPT_SETUP%" goto :MISSING_SCRIPTS
 if not exist "%SCRIPT_START%" goto :MISSING_SCRIPTS
 if not exist "%~dp0elevate_installer.ps1" goto :MISSING_SCRIPTS
+if not exist "%~dp0installer_common.ps1" goto :MISSING_SCRIPTS
+if not exist "%~dp0uninstall.ps1" goto :MISSING_SCRIPTS
+if not exist "%~dp0eltavolitas.bat" goto :MISSING_SCRIPTS
+if not exist "%~dp0HASZNALATI_FELTETELEK.txt" goto :MISSING_SCRIPTS
+if not exist "%~dp0VERSION" goto :MISSING_SCRIPTS
 
 if not "%~1"=="" goto :USE_ARGUMENT
 
@@ -49,11 +54,26 @@ set "TARGET=%INSTALL_DIR%\name - number copy.exe"
 echo.
 echo Celmappa: "%INSTALL_DIR%"
 echo.
-rem A mar letezo mappa NEM hiba: udvariasan megerositest kerunk.
+echo MUKODES: helyi OpenCart-nev/rendelesszam olvasasa, masolas a vagolapra.
+echo TELEPITES: EXE es sajat scriptek; kozos Asztal/Start menu ikonok; nincs backup.
+echo BONGESZO: meglevo Brave/Chrome/Edge, kulon OpenCart-profil, helyi CDP 9222/9223.
+echo Nincs kulso adatkuldes, telemetria, programletoltes vagy vedelmi beallitasmodositas.
+echo Admin inditasnal ideiglenes, normal jogu Windows-feladat indul, majd torlodik.
+echo Eltavolitas: eltavolitas.bat. Bongeszok es profilok megmaradnak.
+echo Reszletes tajekoztato: "%~dp0HASZNALATI_FELTETELEK.txt"
+if /I "%~2"=="/elevated-child" goto :CHECK_ELEVATION
+set "NNC_AUTOSTART=Off"
+if /I "%~2"=="/autostart:on" set "NNC_AUTOSTART=On"
 if "%INTERACTIVE%"=="0" goto :CHECK_ELEVATION
-rem Elobb a felhasznalo kivalasztotta a celmappat.
-rem A gepszintu telepites admin gyerekben fut, a CDP teszt viszont
-rem UTANA a telepitot indito NEM emelt jogosultsagu felhasznalonal.
+echo.
+if exist "%TARGET%" echo [INFO] A meglevo fajlok backup nelkul frissulnek.
+set "ANSWER="
+set /p "ANSWER=Automatikus bongeszoinditas MINDEN felhasznalonal bejelentkezeskor? (I/N, Enter=N): "
+if /I "%ANSWER%"=="I" set "NNC_AUTOSTART=On"
+echo Valasztott automatikus inditas: %NNC_AUTOSTART%
+set "ANSWER="
+set /p "ANSWER=Jovahagyod a fenti telepitest/frissitest? (I/N): "
+if /I not "%ANSWER%"=="I" goto :CANCELLED
 :CHECK_ELEVATION
 if "%NNC_TEST_SKIP_LAUNCH%"=="1" goto :INSTALL_FILES
 fltmc >nul 2>&1
@@ -68,22 +88,6 @@ if errorlevel 1 goto :ELEVATION_FAIL
 goto :VERIFY_BROWSER
 
 :INSTALL_FILES
-if "%INTERACTIVE%"=="0" goto :CONFIRMED
-if exist "%TARGET%" goto :ASK_UPDATE
-if exist "%INSTALL_DIR%\" goto :ASK_FOLDER
-goto :CONFIRMED
-
-:ASK_UPDATE
-echo [INFO] Itt mar van egy name - number copy.exe.
-echo [INFO] Frissiteskor a fajlokat biztonsagi masolat nelkul cserelem.
-goto :ASK_CONTINUE
-:ASK_FOLDER
-echo [INFO] Ez a mappa mar letezik. Hasznalhatom a telepiteshez?
-:ASK_CONTINUE
-set "ANSWER="
-set /p "ANSWER=Folytassam? (I/N): "
-if /I not "%ANSWER%"=="I" goto :CANCELLED
-:CONFIRMED
 if not exist "%INSTALL_DIR%\" mkdir "%INSTALL_DIR%" >nul 2>&1
 if not exist "%INSTALL_DIR%\" goto :CREATE_DIR_FAIL
 
@@ -109,10 +113,35 @@ set "COPY_TARGET=%INSTALL_DIR%\start_opencart_browser.ps1"
 call :COPY_SCRIPT
 if errorlevel 1 goto :SCRIPT_FAIL
 
+set "COPY_SOURCE=%~dp0elevate_installer.ps1"
+set "COPY_TARGET=%INSTALL_DIR%\elevate_installer.ps1"
+call :COPY_SCRIPT
+if errorlevel 1 goto :SCRIPT_FAIL
+set "COPY_SOURCE=%~dp0installer_common.ps1"
+set "COPY_TARGET=%INSTALL_DIR%\installer_common.ps1"
+call :COPY_SCRIPT
+if errorlevel 1 goto :SCRIPT_FAIL
+set "COPY_SOURCE=%~dp0uninstall.ps1"
+set "COPY_TARGET=%INSTALL_DIR%\uninstall.ps1"
+call :COPY_SCRIPT
+if errorlevel 1 goto :SCRIPT_FAIL
+set "COPY_SOURCE=%~dp0eltavolitas.bat"
+set "COPY_TARGET=%INSTALL_DIR%\eltavolitas.bat"
+call :COPY_SCRIPT
+if errorlevel 1 goto :SCRIPT_FAIL
+set "COPY_SOURCE=%~dp0HASZNALATI_FELTETELEK.txt"
+set "COPY_TARGET=%INSTALL_DIR%\HASZNALATI_FELTETELEK.txt"
+call :COPY_SCRIPT
+if errorlevel 1 goto :SCRIPT_FAIL
+set "COPY_SOURCE=%~dp0VERSION"
+set "COPY_TARGET=%INSTALL_DIR%\VERSION"
+call :COPY_SCRIPT
+if errorlevel 1 goto :SCRIPT_FAIL
+
 echo [INFO] Brave/Chrome/Edge gepszintu felismerese es beallitasa...
 rem A tesztparameterek kizarolag a CI tesztkornyezetben aktivak.
 if "%NNC_TEST_SKIP_LAUNCH%"=="1" goto :SETUP_TEST
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%INSTALL_DIR%\setup_browser.ps1" -InstallDir "%INSTALL_DIR%"
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%INSTALL_DIR%\setup_browser.ps1" -InstallDir "%INSTALL_DIR%" -AutoStart "%NNC_AUTOSTART%"
 if errorlevel 1 goto :BROWSER_FAIL
 if /I "%~2"=="/elevated-child" goto :MACHINE_STAGE_SUCCESS
 goto :VERIFY_ADMIN
@@ -122,13 +151,13 @@ echo [OK] Gepszintu telepites sikeres. Normal felhasznaloi CDP teszt folytatodik
 endlocal & exit /b 0
 
 :SETUP_TEST
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%INSTALL_DIR%\setup_browser.ps1" -InstallDir "%INSTALL_DIR%" -BravePath "%NNC_TEST_BRAVE_PATH%" -ChromePath "%NNC_TEST_CHROME_PATH%" -EdgePath "%NNC_TEST_EDGE_PATH%" -TestRoot "%NNC_TEST_ROOT%" -SkipLaunch
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%INSTALL_DIR%\setup_browser.ps1" -InstallDir "%INSTALL_DIR%" -AutoStart "%NNC_AUTOSTART%" -BravePath "%NNC_TEST_BRAVE_PATH%" -ChromePath "%NNC_TEST_CHROME_PATH%" -EdgePath "%NNC_TEST_EDGE_PATH%" -TestRoot "%NNC_TEST_ROOT%" -SkipLaunch
 if errorlevel 1 goto :BROWSER_FAIL
 goto :SUCCESS
 
 :VERIFY_BROWSER
 echo [INFO] Valodi bongeszoinditas NORMAL felhasznalokent es CDP teszt...
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%INSTALL_DIR%\start_opencart_browser.ps1" -Browser Auto
+"%INSTALL_DIR%\name - number copy.exe" --start-browser Auto
 if errorlevel 1 goto :BROWSER_FAIL
 echo [OK] CDP 9222/9223 bongeszo kapcsolat valoban ellenorizve.
 goto :SUCCESS
@@ -185,7 +214,9 @@ goto :FAIL
 echo [HIBA] A bongeszoindito scriptek masolasa vagy ellenorzese sikertelen.
 goto :FAIL
 :BROWSER_FAIL
-echo [HIBA] A bongeszo/CDP beallitasa NEM mukodik; a telepites nem sikeres.
+echo [HIBA] A fajlok telepitve lehetnek, de a bongeszo/CDP kapcsolat NINCS igazolva.
+echo [INFO] Kattints normal felhasznalokent az OpenCart - Brave/Chrome/Edge Asztal-ikonra.
+echo [INFO] Ha ott sem indul, a lenti naplo mutatja az inditas es a CDP ellenorzes eredmenyet.
 echo [INFO] Reszletes naplo: %%TEMP%%\name_number_copy_browser.log
 goto :FAIL
 :CLEAN_STAGE
@@ -200,7 +231,8 @@ if "%NNC_TEST_SKIP_LAUNCH%"=="1" (
 )
 echo [OK] EXE: "%TARGET%"
 echo [INFO] Backup nem keszul; a korabbi telepitobackupok eltavolitva.
-echo [INFO] A gep MINDEN Windows-felhasznalojanal automatikusan indul a beallitott bongeszo.
+echo [INFO] Automatikus bongeszoinditas: %NNC_AUTOSTART% ^(minden felhasznalonak^).
+echo [INFO] Eltavolitas: "%INSTALL_DIR%\eltavolitas.bat"
 echo [INFO] A kozos Asztalon es Start menuben letrejottek az OpenCart - Brave/Chrome/Edge ikonok.
 echo [INFO] A bongeszo minden felhasznalonak sajat, elkulonitett OpenCart-profilt hasznal.
 if "%INTERACTIVE%"=="1" pause
