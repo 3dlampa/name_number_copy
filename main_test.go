@@ -45,11 +45,11 @@ func TestPrefixAndSOS(t *testing.T) {
 			t.Fatalf("%s -> %s a(z) %s helyett", host, o.Code, expected)
 		}
 		o.Name = "Matyikó Tamás"
-		if got := formatValue(o); got != expected+" 132688 - Matyikó Tamás -" {
+		if got := formatValue(o); got != expected+" 132688 - Matyikó Tamás - " {
 			t.Errorf("%s: %q", host, got)
 		}
 		o.SOS = true
-		if got := formatValue(o); got != expected+" 132688 - SOS - Matyikó Tamás -" {
+		if got := formatValue(o); got != expected+" 132688 - SOS - Matyikó Tamás - " {
 			t.Errorf("SOS %s: %q", host, got)
 		}
 	}

@@ -12,7 +12,6 @@ set "SCRIPT_START=%~dp0start_opencart_browser.ps1"
 set "DEFAULT_DIR=D:\3d lámpa\Photoshop és Illustrator scriptek"
 set "INTERACTIVE=1"
 set "INSTALL_DIR="
-set "BACKUP_CREATED="
 
 if not exist "%SOURCE%" goto :MISSING_SOURCE
 if not exist "%SCRIPT_SETUP%" goto :MISSING_SCRIPTS
@@ -76,7 +75,7 @@ goto :CONFIRMED
 
 :ASK_UPDATE
 echo [INFO] Itt mar van egy name - number copy.exe.
-echo [INFO] Frissites elott biztonsagi masolatot keszitek.
+echo [INFO] Frissiteskor a fajlokat biztonsagi masolat nelkul cserelem.
 goto :ASK_CONTINUE
 :ASK_FOLDER
 echo [INFO] Ez a mappa mar letezik. Hasznalhatom a telepiteshez?
@@ -89,10 +88,8 @@ if not exist "%INSTALL_DIR%\" mkdir "%INSTALL_DIR%" >nul 2>&1
 if not exist "%INSTALL_DIR%\" goto :CREATE_DIR_FAIL
 
 rem A telepito elejen semmit sem modositunk a bongeszoikonokon.
-rem Az EXE mentese megelzi az esetleges felulirast.
+rem Az EXE staging fajlon keresztul cserelodik; nem keszul backup.
 if /I "%SOURCE%"=="%TARGET%" goto :INSTALL_SCRIPTS
-if exist "%TARGET%" call :BACKUP_CURRENT
-if exist "%TARGET%" if errorlevel 1 goto :BACKUP_FAIL
 set "STAGING=%TARGET%.installing_%RANDOM%_%RANDOM%"
 copy /B /Y "%SOURCE%" "%STAGING%" >nul
 if errorlevel 1 goto :COPY_FAIL
@@ -149,22 +146,9 @@ goto :SUCCESS
 :COPY_SCRIPT
 rem Ugyanazt a fajlt nem masoljuk sajat magara; nincs utvonalas CALL ujraertelmezes.
 if /I "%COPY_SOURCE%"=="%COPY_TARGET%" exit /b 0
-if exist "%COPY_TARGET%" (
-    copy /B /Y "%COPY_TARGET%" "%COPY_TARGET%.backup_%RANDOM%_%RANDOM%" >nul
-    if errorlevel 1 exit /b 1
-)
 copy /B /Y "%COPY_SOURCE%" "%COPY_TARGET%" >nul
 if errorlevel 1 exit /b 1
 fc /B "%COPY_SOURCE%" "%COPY_TARGET%" >nul
-if errorlevel 1 exit /b 1
-exit /b 0
-
-:BACKUP_CURRENT
-set "STAMP="
-for /f %%T in ('powershell.exe -NoProfile -Command "Get-Date -Format yyyyMMdd_HHmmss_fff"') do set "STAMP=%%T"
-if not defined STAMP exit /b 1
-set "BACKUP_CREATED=%TARGET%.backup_%STAMP%"
-copy /B /Y "%TARGET%" "%BACKUP_CREATED%" >nul
 if errorlevel 1 exit /b 1
 exit /b 0
 
@@ -188,9 +172,6 @@ goto :FAIL
 :CREATE_DIR_FAIL
 echo [HIBA] Nem sikerult a celmappat letrehozni.
 goto :FAIL
-:BACKUP_FAIL
-echo [HIBA] A regi EXE biztonsagi mentese sikertelen. Nincs feluliras.
-goto :FAIL
 :COPY_FAIL
 echo [HIBA] Az uj EXE masolasa sikertelen.
 goto :CLEAN_STAGE
@@ -206,7 +187,6 @@ goto :FAIL
 :BROWSER_FAIL
 echo [HIBA] A bongeszo/CDP beallitasa NEM mukodik; a telepites nem sikeres.
 echo [INFO] Reszletes naplo: %%TEMP%%\name_number_copy_browser.log
-echo [INFO] A regi EXE biztonsagi mentese megmarad.
 goto :FAIL
 :CLEAN_STAGE
 if defined STAGING if exist "%STAGING%" del /F /Q "%STAGING%" >nul 2>&1
@@ -219,7 +199,7 @@ if "%NNC_TEST_SKIP_LAUNCH%"=="1" (
   echo [OK] Masoloprogram es bongeszo beallitva, a CDP kapcsolat ELLENORIZVE.
 )
 echo [OK] EXE: "%TARGET%"
-if defined BACKUP_CREATED echo [OK] Regi EXE mentese: "%BACKUP_CREATED%"
+echo [INFO] Backup nem keszul; a korabbi telepitobackupok eltavolitva.
 echo [INFO] A gep MINDEN Windows-felhasznalojanal automatikusan indul a beallitott bongeszo.
 echo [INFO] A kozos Asztalon es Start menuben letrejottek az OpenCart - Brave/Chrome/Edge ikonok.
 echo [INFO] A bongeszo minden felhasznalonak sajat, elkulonitett OpenCart-profilt hasznal.

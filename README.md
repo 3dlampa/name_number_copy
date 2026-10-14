@@ -1,6 +1,6 @@
 # Név és rendelésszám vágólapra másoló
 
-**Aktuális kiadás (EXE és telepítő):** `v1.1.8`  
+**Aktuális kiadás (EXE és telepítő):** `v1.1.9`
 **Verzióforrás:** `VERSION` (az EXE-be beágyazva, a Release tag/ZIP ezt ellenőrzi)  
 **Platform:** Windows 11 x64  
 **Programfájl:** `name - number copy.exe`
@@ -22,11 +22,13 @@
 
 ## Vágólap formátuma
 
-`HU 132688 - Matyikó Tamás -`  
-`HU 132688 - SOS - Matyikó Tamás -`  
-`RO 132688 - Matyikó Tamás -`  
-`SK 84 - Matyikó Tamás -`  
-`CZ 555 - Matyikó Tamás -`
+- `HU 132688 - Matyikó Tamás - `
+- `HU 132688 - SOS - Matyikó Tamás - `
+- `RO 132688 - Matyikó Tamás - `
+- `SK 84 - Matyikó Tamás - `
+- `CZ 555 - Matyikó Tamás - `
+
+Az utolsó kötőjel után pontosan egy szóköz kerül a vágólapra, normál és SOS esetben is. Ez az egy rendeléses és a több rendeléses választóból történő másolásra egyaránt vonatkozik.
 
 Az országkód a webshop domainjéből jön, nem a böngésző nyelvéből.
 
@@ -40,7 +42,7 @@ Más mappa esetén egyszerűen gépeld be a teljes útvonalat, például `E:\Mun
 
 1. Zárd be a régi másoló EXE-t, ha még fut.
 2. Csomagold ki a ZIP-et, és indítsd a `telepites.bat`-ot. A program EXE-fájlja a BAT mellett legyen.
-3. Válassz telepítési helyet. Meglévő EXE esetén a telepítő előbb időbélyeges `.backup_...` biztonsági mentést készít, majd cseréli a fájlt.
+3. Válassz telepítési helyet. A telepítő az EXE-t és a scripteket backup nélkül frissíti, a böngészőbeállításokat és a parancsikonokat szintén backup nélkül írja. A korábbi telepítő saját, ismert nevű `.backup_...` fájljait törli a célmappából, a közös Asztalról, a Start menüből és az Indítópultból.
 4. Teszteld egy és két különböző nyitott rendelés mellett, lehetőleg aktív Illustrator ablakkal.
 
 Automatizált telepítéshez a célmappa első argumentumként is átadható: `telepites.bat "E:\Munka\Scriptek"`. Ez a mód nem kér billentyűbevitelt.
@@ -58,7 +60,7 @@ Az `-H windowsgui` szükséges, hogy egy rendelésnél ne nyíljon konzol. Az `A
 
 ## Biztonság / megőrzés
 
-- Telepítéskor az eredeti EXE biztonsági másolata megmarad.
+- Telepítéskor nem készül EXE-, script-, konfiguráció- vagy parancsikon-backup. A korábbi telepítőbackupok automatikusan törlődnek; más programok mentéseihez nem nyúl.
 - Adatbázist, webshop-állományokat és rendeléseket nem módosít.
 - A vágólapot csak sikeresen kiolvasott, kiválasztott rendelésnél írja.
 - CDP WebSocket csak localhost `9222`/`9223` porton engedélyezett.
@@ -70,7 +72,7 @@ Az uj telepito felismeri a telepitett Brave es Google Chrome bongeszot. A Brave 
 
 A Chrome 136-tol `--remote-debugging-port` csak kulon `--user-data-dir` adatkotarral megbizhato. A telepito a korabbi OpenCartDebug profilokat, ha megtalalja, megtartja es ujrafelhasznalja. A regi normal Brave/Chrome profilok, a Windows alapertelmezett bongeszo es az eredeti taskbar ikonok valtozatlanok. Az uj ikon neve **OpenCart - Brave** vagy **OpenCart - Chrome**; rendelest ebben a kulon bongeszoprofilban kell megnyitni, es elso alkalommal a webshopba bejelentkezni. A normal bongeszoikonra kattintva tovabbra is elindulhat a normal (CDP nelkuli) profil, ennek automatikus atirasa nem biztonsagos.
 
-A debug-port kizarolag 127.0.0.1-hez kotodik, de a gepen futo mas helyi folyamatok technikailag hozzaferhetnek a CDP-hez, ezert a kulon bongeszo-profilban csak a szukseges munkat vegezd. Sikertelen bongeszo-felderites vagy portellenorzes eseten a telepites NEM jelez sikert. A korabbi EXE es a fajlkonfiguraciok mentesei megmaradnak.
+A debug-port kizarolag 127.0.0.1-hez kotodik, de a gepen futo mas helyi folyamatok technikailag hozzaferhetnek a CDP-hez, ezert a kulon bongeszo-profilban csak a szukseges munkat vegezd. Sikertelen bongeszo-felderites vagy portellenorzes eseten a telepites NEM jelez sikert. A v1.1.9 telepito nem keszit backupokat, es eltavolitja a korabbi sajat telepitobackupokat.
 
 **Biztonsagi statusz:** a korabbi ellenorzott v1.0.3 Release valtozatlanul elerheto; a v1.1.0-rc.1 elozetes, Windows/Illustrator gyakorlati tesztre var.
 
@@ -89,7 +91,7 @@ Az EXE, a `VERSION` fájl, a kiadási Git-tag, a Release címe, a ZIP neve és a
 - Brave és Edge: CDP 9222; Chrome: CDP 9223. A már működő másoló-EXE működéséhez nem nyúltunk.
 - Az OpenCart böngészőprofil minden Windows-felhasználónál a **saját** `%LOCALAPPDATA%\NameNumberCopy\BrowserProfiles\...` helyén jön létre **csak az első használatkor**. Korábbi OpenCart-specifikus CDP-profilokat újrahasznál; a normál böngészőprofilokat nem módosítja.
 - A rendszer-bejelentkezéskor a közös Startup indítja a kiválasztott böngészőt az adott felhasználó **normál jogosultságával**; a telepítő rendszergazdaként nem indít emelt jogú böngészőt.
-- Ha a célmappa vagy az EXE már létezik, interaktív telepítésnél **rákérdez a folytatásra**. Jóváhagyott frissítésnél a korábbi EXE/config/script/ikon biztonsági mentése megmarad. A meglévő mappa önmagában nem hiba.
+- Ha a célmappa vagy az EXE már létezik, interaktív telepítésnél **rákérdez a folytatásra**. A meglévő mappa önmagában nem hiba. A v1.1.9-től a jóváhagyott frissítés backup nélkül történik.
 - Az OpenCart webshop-adminba történő bejelentkezést nem kerüli meg: új, elkülönített profilban szükség lehet az eredeti webshop-fiókkal történő bejelentkezésre; nincs extra, külön telepítőfiók.
 - **Korlát:** ha egy speciálisan módosított Windowsról az összes Chromium-alapú böngészőt eltávolították, internet nélküli telepítő nem tud új böngészőt előállítani. Ilyenkor pontos, érthető hiba jelenik meg, nem hamis sikerüzenet.
 - **Visszaállítás:** az ellenőrzött v1.0.3 stabil Release, a v1.1.0-rc.1 és v1.1.1-rc.1 próbaverziók érintetlenül megmaradnak.

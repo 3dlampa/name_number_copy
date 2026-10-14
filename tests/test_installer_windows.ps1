@@ -1,4 +1,4 @@
-$ErrorActionPreference = 'Stop'
+﻿$ErrorActionPreference = 'Stop'
 $root = (Get-Location).Path
 & (Join-Path $root 'tests/test_installer_elevation.ps1')
 $batPath = Join-Path $root 'telepites.bat'
@@ -69,17 +69,42 @@ try {
     if (Test-Path -LiteralPath (Join-Path $edgeOnlyUser 'Profiles')) { throw 'Setup prematurely created an admin-bound profile' }
 
     # Visszaallitjuk a teszt teljes ketbongeszos konfiguraciojat, a masodik telepites ezt frissiti.
-    # Two installs: existing EXE/config/shortcuts MUST be backed up.
+    # Reinstall must remove only this installer's legacy backups and create none.
+    $legacyFiles = @(
+        (Join-Path $destDir 'name - number copy.exe.backup_20261012_110113_288'),
+        (Join-Path $destDir 'opencart_browser_config.json.backup_20261012_110113_288'),
+        (Join-Path $destDir 'setup_browser.ps1.backup_4761_23297'),
+        (Join-Path $destDir 'start_opencart_browser.ps1.backup_8058_15277'),
+        (Join-Path $destDir 'elevate_installer.ps1.backup_123_456'),
+        (Join-Path $testUser 'CommonStartup\OpenCart Rendelesmasolo - bongeszoinditas.lnk.backup_20261012_110113_288')
+    )
+    foreach ($name in @('Brave','Chrome','Edge')) {
+        foreach ($location in @('PublicDesktop','CommonPrograms\OpenCart Rendelesmasolo')) {
+            $legacyFiles += Join-Path $testUser "$location\OpenCart - $name.lnk.backup_20261012_110113_288"
+        }
+    }
+    foreach ($file in $legacyFiles) { [IO.File]::WriteAllText($file, 'legacy installer backup') }
+    $unrelated = Join-Path $testUser 'CommonStartup\OtherApp.lnk.backup_20261012_110113_288'
+    [IO.File]::WriteAllText($unrelated, 'unrelated backup')
+    $unrecognized = Join-Path $destDir 'name - number copy.exe.backup_notes'
+    [IO.File]::WriteAllText($unrecognized, 'not an installer-generated suffix')
     Invoke-Installer $destDir
-    $backups = @(Get-ChildItem -LiteralPath $destDir -File -Filter 'name - number copy.exe.backup_*')
-    if ($backups.Count -lt 1) { throw 'EXE backup missing on second install' }
-    if ((Get-FileHash -LiteralPath $backups[0].FullName -Algorithm SHA256).Hash -ne $expected) { throw 'EXE backup SHA differs' }
-    $configBackups = @(Get-ChildItem -LiteralPath $destDir -File -Filter 'opencart_browser_config.json.backup_*')
-    if ($configBackups.Count -lt 1) { throw 'Config backup missing' }
+    function Assert-NoInstallerBackups {
+        foreach ($file in $legacyFiles) {
+            if (Test-Path -LiteralPath $file) { throw "Legacy installer backup remains: $file" }
+        }
+        $scanDirs = @($destDir, (Join-Path $testUser 'CommonStartup'), (Join-Path $testUser 'PublicDesktop'), (Join-Path $testUser 'CommonPrograms\OpenCart Rendelesmasolo'))
+        foreach ($dir in $scanDirs) {
+            $remaining = @(Get-ChildItem -LiteralPath $dir -File -Filter '*.backup_*' | Where-Object { $_.FullName -ne $unrelated -and $_.FullName -ne $unrecognized })
+            if ($remaining.Count -gt 0) { throw "Reinstall created backups: $($remaining.FullName -join ', ')" }
+        }
+        if ([IO.File]::ReadAllText($unrelated) -ne 'unrelated backup' -or
+            [IO.File]::ReadAllText($unrecognized) -ne 'not an installer-generated suffix') { throw 'Unrelated file changed during cleanup' }
+        if ((Get-FileHash -LiteralPath $exeTarget -Algorithm SHA256).Hash -ne $expected) { throw 'Reinstalled EXE differs' }
+    }
+    Assert-NoInstallerBackups
     $configAfterReinstall = Get-Content -LiteralPath (Join-Path $destDir 'opencart_browser_config.json') -Raw -Encoding UTF8 | ConvertFrom-Json
     if ($configAfterReinstall.Scope -ne 'Machine') { throw 'Reinstall changed machine-wide scope' }
-    $shortcutBackups = @(Get-ChildItem -LiteralPath (Join-Path $testUser 'PublicDesktop') -File -Filter '*.lnk.backup_*')
-    if ($shortcutBackups.Count -lt 2) { throw 'Shortcut backup missing' }
 
     # Same-source-destination directory should still reconfigure browsers safely.
     foreach ($f in @('telepites.bat','elevate_installer.ps1','setup_browser.ps1','start_opencart_browser.ps1')) {
@@ -87,6 +112,17 @@ try {
     }
     Push-Location $destDir
     try { Invoke-Installer $destDir } finally { Pop-Location }
+    Assert-NoInstallerBackups
+    foreach ($name in @('Brave','Chrome','Edge')) {
+        foreach ($location in @('PublicDesktop','CommonPrograms\OpenCart Rendelesmasolo')) {
+            $lnk = Join-Path $testUser "$location\OpenCart - $name.lnk"
+            $link = (New-Object -ComObject WScript.Shell).CreateShortcut($lnk)
+            if ($link.TargetPath -ne "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe" -or
+                $link.Arguments -notmatch [regex]::Escape('start_opencart_browser.ps1')) { throw "Reinstall broke launcher: $lnk" }
+        }
+    }
+    $autostart = (New-Object -ComObject WScript.Shell).CreateShortcut((Join-Path $testUser 'CommonStartup\OpenCart Rendelesmasolo - bongeszoinditas.lnk'))
+    if ($autostart.Arguments -notmatch '-AutoStart') { throw 'Reinstall broke autostart' }
 
     # An install on a PC with no supported browser must stop instead of claiming success.
     $missingDest = Join-Path $runnerRoot 'NoBrowsers'
@@ -181,7 +217,7 @@ try {
     Write-Host 'PASS: elevated installer uses temporary Limited/InteractiveToken task, not CheckOnly.'
 
 
-    Write-Host 'PASS: all-user common shortcuts/startup, Brave/Chrome/Edge, Edge-only virgin Win11, per-user profile at runtime, backups, hash, no-browser STOP, same-path, Unicode, CRLF.'
+    Write-Host 'PASS: all-user shortcuts/startup, Brave/Chrome/Edge, Edge-only Win11, per-user profile, no new backups, legacy cleanup, unrelated files retained, hash, no-browser STOP, same-path, Unicode, CRLF.'
 } finally {
     Remove-Item Env:NNC_TEST_SKIP_LAUNCH -ErrorAction SilentlyContinue
     Remove-Item Env:NNC_TEST_ROOT -ErrorAction SilentlyContinue

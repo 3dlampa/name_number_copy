@@ -212,15 +212,15 @@ func uniqueOrders(tabs []tab) []order {
 }
 
 func formatValue(o order) string {
-	// Prefix a számtól pontosan egy szóközzel, eredeti SOS és záró kötőjelek megtartva.
+	// Prefix a számtól és a záró kötőjel után pontosan egy szóközzel.
 	prefix := o.ID
 	if o.Code != "" {
 		prefix = o.Code + " " + prefix
 	}
 	if o.SOS {
-		return fmt.Sprintf("%s - SOS - %s -", prefix, o.Name)
+		return fmt.Sprintf("%s - SOS - %s - ", prefix, o.Name)
 	}
-	return fmt.Sprintf("%s - %s -", prefix, o.Name)
+	return fmt.Sprintf("%s - %s - ", prefix, o.Name)
 }
 
 func listTabs() []tab {

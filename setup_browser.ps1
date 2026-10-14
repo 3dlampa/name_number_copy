@@ -12,6 +12,20 @@ param(
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
+
+function Remove-InstallerBackups([string]$Directory, [string[]]$FileNames) {
+    if (-not (Test-Path -LiteralPath $Directory -PathType Container)) { return }
+    # Csak sajat fajlnevek es a regi telepito ket ismert suffixe; nincs rekurzio.
+    $names = ($FileNames | ForEach-Object { [regex]::Escape($_) }) -join '|'
+    $pattern = '^(?:' + $names + ')\.backup_(?:\d{8}_\d{6}_\d{3}|\d+_\d+)$'
+    foreach ($file in (Get-ChildItem -LiteralPath $Directory -File -Force -ErrorAction Stop)) {
+        if ($file.Name -match $pattern) {
+            Remove-Item -LiteralPath $file.FullName -Force -ErrorAction Stop
+            Write-Host ("[OK] Regi telepitobackup torolve: {0}" -f $file.Name)
+        }
+    }
+}
+
 $InstallDir = [IO.Path]::GetFullPath($InstallDir)
 $launcher = Join-Path $InstallDir 'start_opencart_browser.ps1'
 if (-not (Test-Path -LiteralPath $launcher -PathType Leaf)) {
@@ -111,9 +125,6 @@ $config = @{
 }
 $configPath = Join-Path $InstallDir 'opencart_browser_config.json'
 $stamp = Get-Date -Format 'yyyyMMdd_HHmmss_fff'
-if (Test-Path -LiteralPath $configPath -PathType Leaf) {
-    Copy-Item -LiteralPath $configPath -Destination "$configPath.backup_$stamp" -ErrorAction Stop
-}
 $tmp = "$configPath.installing_$stamp"
 try {
     [IO.File]::WriteAllText($tmp, ($config | ConvertTo-Json -Depth 8), (New-Object System.Text.UTF8Encoding($false)))
@@ -125,9 +136,6 @@ try {
 $wsh = New-Object -ComObject WScript.Shell
 $psExe = Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe'
 function Set-LauncherShortcut([string]$LinkPath, [string]$Browser, [string]$IconExe, [bool]$AutoStart = $false) {
-    if (Test-Path -LiteralPath $LinkPath -PathType Leaf) {
-        Copy-Item -LiteralPath $LinkPath -Destination "$LinkPath.backup_$stamp" -ErrorAction Stop
-    }
     $link = $wsh.CreateShortcut($LinkPath)
     $link.TargetPath = $psExe
     $args = '-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File "' + $launcher + '" -Browser ' + $Browser
@@ -146,6 +154,12 @@ foreach ($name in $available) {
 }
 $startupLink = Join-Path $commonStartup 'OpenCart Rendelesmasolo - bongeszoinditas.lnk'
 Set-LauncherShortcut $startupLink 'Auto' $discovered[$preferred] $true
+
+Remove-InstallerBackups $InstallDir @('name - number copy.exe', 'opencart_browser_config.json', 'setup_browser.ps1', 'start_opencart_browser.ps1', 'elevate_installer.ps1')
+foreach ($directory in @($commonDesktop, $startMenu)) {
+    Remove-InstallerBackups $directory @('OpenCart - Brave.lnk', 'OpenCart - Chrome.lnk', 'OpenCart - Edge.lnk')
+}
+Remove-InstallerBackups $commonStartup @('OpenCart Rendelesmasolo - bongeszoinditas.lnk')
 
 # Emelt jogosultsagu telepitobol nem inditunk emelt szintu bongeszot.
 # Az OpenCart-bongeszo a kovetkezo Windows-bejelentkezesnel, a NORMAL
