@@ -75,6 +75,7 @@ jobs:
         run: go build -trimpath -ldflags '-H windowsgui -s -w' -o 'name - number copy.exe' .
       - name: Test browser setup, Windows installer and uninstall BAT
         shell: pwsh
+        # Transport fixtures use isolated Edge/Chrome; normal Brave has its own identity tests.
         run: ./tests/test_installer_windows.ps1
       - name: Verify real signed Brave with its normal profile on disposable worker
         shell: pwsh

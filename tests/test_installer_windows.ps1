@@ -150,10 +150,16 @@ try {
     $starter = Join-Path $destDir 'start_opencart_browser.ps1'
     $fakeProfile = Join-Path $runnerRoot 'FakeLoggedInUser'
     New-Item -ItemType Directory -Force -Path $fakeProfile | Out-Null
-    # Keep existing live browsers intact. Use one free supported CDP port.
-    $busyPorts = @([Net.NetworkInformation.IPGlobalProperties]::GetIPGlobalProperties().GetActiveTcpListeners() | ForEach-Object Port)
-    $testPort = if ($busyPorts -notcontains 9222) { 9222 } elseif ($busyPorts -notcontains 9223) { 9223 } else { throw 'No free supported CDP port for isolated tests; leave live browsers running.' }
-    $testBrowser = if ($testPort -eq 9222) { 'Brave' } else { 'Chrome' }
+    # An explicit test-user root permits a fixture-only port, leaving host browsers intact.
+    $probe = [Net.Sockets.TcpListener]::new([Net.IPAddress]::Loopback,0)
+    $probe.Start(); $testPort=$probe.LocalEndpoint.Port; $probe.Stop()
+    # This fixture checks the transport only; normal Brave additionally requires
+    # its existing data directory and launch identity (covered by the native test).
+    $testBrowser = 'Edge'
+    $configPath = Join-Path $destDir 'opencart_browser_config.json'
+    $transportConfig = Get-Content -LiteralPath $configPath -Raw -Encoding UTF8 | ConvertFrom-Json
+    $transportConfig.Browsers.Edge.Port = $testPort
+    [IO.File]::WriteAllText($configPath,($transportConfig | ConvertTo-Json -Depth 5),(New-Object Text.UTF8Encoding($false)))
     # No browser port: check-only must FAIL, not report a false installation success.
     & "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -ExecutionPolicy Bypass -File $starter -Browser $testBrowser -CheckOnly -TestUserRoot $fakeProfile *> $null
     if ($LASTEXITCODE -eq 0) { throw 'Browser launcher accepted a missing CDP endpoint' }
