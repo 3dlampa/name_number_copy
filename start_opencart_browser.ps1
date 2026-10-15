@@ -20,7 +20,9 @@ if (-not $FromElevatedInstaller) {
     $process = Start-Process -FilePath $exe -ArgumentList ($arguments | ForEach-Object {
         # Windows argument quoting for the only free-form value (test profile).
         if ($_ -match '[\s"]') { '"' + ($_ -replace '(\\*)"', '$1$1\"' -replace '(\\+)$', '$1$1') + '"' } else { $_ }
-    }) -WindowStyle Hidden -Wait -PassThru
+    }) -WindowStyle Hidden -PassThru
+    # Wait only for the launcher, not its long-lived browser process tree.
+    $process.WaitForExit()
     exit $process.ExitCode
 }
 $configPath = Join-Path $PSScriptRoot 'opencart_browser_config.json'
@@ -63,7 +65,7 @@ if ($FromElevatedInstaller) {
         $task.Principal.RunLevel = 0   # Limited: nem emelt jogosultsag
         $action = $task.Actions.Create(0)
         $action.Path = $exe
-        $action.Arguments = '--start-browser Auto'
+        $action.Arguments = '--start-browser Auto --autostart'
         $action.WorkingDirectory = $PSScriptRoot
         Write-Host '[INFO] Normal jogu EXE inditofeladat letrehozasa...'
         $registered = $folder.RegisterTaskDefinition($taskName, $task, 6, $account, $null, 3, $null)
@@ -76,6 +78,16 @@ if ($FromElevatedInstaller) {
         $portsToCheck = @($likelyPort) + @(9222, 9223) | Select-Object -Unique
         $tested = $false
         while ([DateTime]::UtcNow -lt $deadline) {
+            $resultCode = [long]$registered.LastTaskResult
+            $hasRun = $registered.LastRunTime.Year -ge 2020
+            if ($hasRun -and $registered.State -ne 4 -and $resultCode -ne 0) {
+                throw ("A normal felhasznaloi indito hibaval kilepett: " + $resultCode + ". Naplo: %TEMP%\name_number_copy_browser.log. Meglevo Brave-profil eseten zard be minden Brave-ablakot, majd kattints az OpenCart - Brave ikonra.")
+            }
+            # A different already-healthy CDP must not hide a failed native profile launch.
+            if (-not $hasRun -or $registered.State -eq 4 -or $resultCode -ne 0) {
+                Start-Sleep -Milliseconds 250
+                continue
+            }
             foreach ($checkPort in $portsToCheck) {
                 try {
                     $v = Invoke-RestMethod -Uri "http://127.0.0.1:$checkPort/json/version" -TimeoutSec 1 -ErrorAction Stop

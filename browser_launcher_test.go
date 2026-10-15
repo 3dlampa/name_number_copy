@@ -32,6 +32,51 @@ func TestBrowserProfilesRetainLegacyAndRemainSeparate(t *testing.T) {
 	}
 }
 
+func TestExistingBraveProfilePreservesSameDirectoryAndExplicitMode(t *testing.T) {
+	root := t.TempDir()
+	normal := filepath.Join(root, "BraveSoftware", "Brave-Browser", "User Data")
+	if _, _, err := selectedBrowserProfile(root, "Brave", "Existing"); err == nil {
+		t.Fatal("missing existing profile silently replaced")
+	}
+	if err := os.MkdirAll(normal, 0700); err != nil {
+		t.Fatal(err)
+	}
+	login := filepath.Join(normal, "existing-login.txt")
+	if err := os.WriteFile(login, []byte("keep"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	profile, existing, err := selectedBrowserProfile(root, "Brave", "Existing")
+	if err != nil || profile != normal || !existing {
+		t.Fatalf("normal profile not reused: %s / %v", profile, err)
+	}
+	if data, _ := os.ReadFile(login); string(data) != "keep" {
+		t.Fatal("existing data changed")
+	}
+	for _, name := range []string{"Brave", "Chrome", "Edge"} {
+		mode := "Isolated"
+		if name != "Brave" {
+			mode = "Existing"
+		}
+		got, ordinary, err := selectedBrowserProfile(root, name, mode)
+		if err != nil || ordinary || got != browserProfile(root, name) {
+			t.Fatal("isolated/Chrome/Edge compatibility lost")
+		}
+	}
+	if _, _, err := selectedBrowserProfile(root, "Brave", "typo"); err == nil {
+		t.Fatal("unknown profile mode accepted")
+	}
+	identity := browserIdentity{123, 456}
+	if err := recordBrowserLaunch(root, normal, identity); err != nil {
+		t.Fatal(err)
+	}
+	if !recordedBrowserMatches(root, normal, identity) {
+		t.Fatal("own launch not recognized")
+	}
+	if recordedBrowserMatches(root, filepath.Join(root, "other"), identity) || recordedBrowserMatches(root, normal, browserIdentity{123, 789}) {
+		t.Fatal("different profile or reused PID accepted")
+	}
+}
+
 func TestBrowserCDPRequiresBothValidEndpoints(t *testing.T) {
 	for _, tc := range []struct {
 		name, version, list string

@@ -12,6 +12,10 @@ import (
 )
 
 func main() {
+	if len(os.Args) > 1 && os.Args[1] == "--fixture-wait-only" {
+		time.Sleep(20 * time.Second)
+		return
+	}
 	port, profile := "", ""
 	for _, arg := range os.Args[1:] {
 		if strings.HasPrefix(arg, "--remote-debugging-port=") {

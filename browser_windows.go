@@ -83,3 +83,9 @@ func expandWindowsEnvironment(value string) string {
 func configureBrowserProcess(command *exec.Cmd) {
 	command.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
 }
+
+func showBrowserStartError(err error) {
+	message, _ := syscall.UTF16PtrFromString(err.Error() + "\n\nNapló: %TEMP%\\name_number_copy_browser.log")
+	title, _ := syscall.UTF16PtrFromString("OpenCart böngészőindítás")
+	syscall.NewLazyDLL("user32.dll").NewProc("MessageBoxW").Call(0, uintptr(unsafe.Pointer(message)), uintptr(unsafe.Pointer(title)), 0x10)
+}

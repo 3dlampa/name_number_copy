@@ -28,6 +28,7 @@ import (
 // 2026-10-12: A korábbi, konzol nélküli Go EXE működésének rekonstruált kiadása.
 // Konzol kizárólag akkor nyílik, ha több KÜLÖNBÖZŐ rendelés közül kell választani.
 // Nem használ Python-t, nem aktiválja a böngészőfüleket.
+//
 //go:embed VERSION
 var embeddedVersion string
 
@@ -394,6 +395,15 @@ func main() {
 	if len(os.Args) > 1 && os.Args[1] == "--start-browser" {
 		if err := runBrowserLauncher(os.Args[2:]); err != nil {
 			logBrowserError(err)
+			interactive := true
+			for _, arg := range os.Args[2:] {
+				if arg == "--autostart" || arg == "--test-user-root" {
+					interactive = false
+				}
+			}
+			if interactive {
+				showBrowserStartError(err)
+			}
 			os.Exit(1)
 		}
 		return

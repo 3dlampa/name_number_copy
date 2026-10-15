@@ -38,6 +38,7 @@ try {
         @{ Name = 'destination-only'; Destination = "C:\dest';Write-Output NNC_INJECTED;#"; Code = 0 },
         @{ Name = "unicode é ! & ^ ( ) %NNC_LITERAL_CANARY%"; Destination = "C:\é ! & ^ ( ) %NNC_LITERAL_CANARY%\end\"; Code = 0 },
         @{ Name = 'no-argument'; Destination = ''; Code = 0 },
+        @{ Name = 'default-destination'; Destination = ''; UseDefault = $true; Code = 0 },
         @{ Name = 'child-failure'; Destination = 'C:\ordinary'; Code = 7 },
         @{ Name = 'cancel'; Destination = 'C:\ordinary'; Code = 0; Cancel = $true }
     )
@@ -88,9 +89,11 @@ endlocal & exit /b 1
         $promptText = ''
         if (-not $case.Destination) {
             $promptText += Read-InstallerPrompt $child 'Telepitesi mappa: '
-            $child.StandardInput.WriteLine('C:\ordinary')
+            $child.StandardInput.WriteLine($(if ($case.UseDefault) { '' } else { 'C:\ordinary' }))
             $promptText += Read-InstallerPrompt $child '(I/N, Enter=N): '
             $child.StandardInput.WriteLine('N')
+            $promptText += Read-InstallerPrompt $child '(I/N, Enter=I): '
+            $child.StandardInput.WriteLine('I')
             $promptText += Read-InstallerPrompt $child '(I/N): '
             $child.StandardInput.WriteLine('I')
         }
@@ -106,7 +109,7 @@ endlocal & exit /b 1
             if (Test-Path -LiteralPath $env:NNC_CAPTURE_OUTPUT) { throw 'Cancelled elevation launched child' }
         } else {
             $actual = [IO.File]::ReadAllText($env:NNC_CAPTURE_OUTPUT)
-            $expectedPath = if ($case.Destination) { [IO.Path]::GetFullPath($case.Destination) } else { 'C:\ordinary' }
+            $expectedPath = if ($case.Destination) { [IO.Path]::GetFullPath($case.Destination) } elseif ($case.UseDefault) { 'C:\Scripts' } else { 'C:\ordinary' }
             if ($actual -cne $expectedPath) { throw "Path changed: [$actual] != [$expectedPath]" }
         }
     }

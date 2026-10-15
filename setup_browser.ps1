@@ -8,7 +8,8 @@ param(
     [string]$TestRoot = '',
     [switch]$SkipLaunch,
     [switch]$ForceNoBrowsers,
-    [ValidateSet('On','Off')][string]$AutoStart = 'Off'
+    [ValidateSet('On','Off')][string]$AutoStart = 'Off',
+    [ValidateSet('Existing','Isolated')][string]$BraveProfileMode = 'Existing'
 )
 
 Set-StrictMode -Version Latest
@@ -108,8 +109,9 @@ foreach ($name in $available) {
     $browsers[$name] = @{ Exe = [string]$discovered[$name]; Port = $port }
 }
 $config = @{
-    Version = 3
+    Version = 4
     Scope = 'Machine'
+    BraveProfileMode = $BraveProfileMode
     Primary = $preferred
     Browsers = $browsers
     UpdatedAt = (Get-Date).ToString('o')
@@ -170,5 +172,5 @@ if (-not $SkipLaunch -and $AutoStart -eq 'On') {
 }
 Write-Host ("[OK] Gepi telepites: {0}" -f $preferred) -ForegroundColor Green
 Write-Host ("[OK] Valasztott automatikus inditas: {0}" -f $AutoStart)
-Write-Host '[OK] A bongeszo adatmappaja az inditaskor felhasznalonkent kulon jon letre.'
+Write-Host ("[OK] Brave-profil: {0}; Windows-felhasznalonkent a sajat profil." -f $BraveProfileMode)
 Write-Host '[INFO] Nincs sajat user/profil vagy OpenCart-bejelentkezes eltarolva a konfiguracioban.'

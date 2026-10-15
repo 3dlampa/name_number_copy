@@ -1,9 +1,27 @@
 # Név és rendelésszám vágólapra másoló
 
-**Aktuális kiadás (EXE és telepítő):** `v1.1.11`
+**Aktuális kiadás (EXE és telepítő):** `v1.1.12`
 **Verzióforrás:** `VERSION` (az EXE-be beágyazva, a Release tag/ZIP ezt ellenőrzi)  
 **Platform:** Windows 11 x64  
 **Programfájl:** `name - number copy.exe`
+
+## v1.1.12 – meglévő Brave-belépések és C:\Scripts
+
+A telepítő alapértelmezett célmappája **C:\Scripts**. Enterrel ezt fogadod el; más teljes útvonal továbbra is választható.
+
+A telepítő külön rákérdez, hogy a meglévő **normál Brave-profilt** használja-e. Enter/I esetén az adott Windows-felhasználó saját `%LOCALAPPDATA%\BraveSoftware\Brave-Browser\User Data` mappájával indul. Ugyanazt a profilt használja, nem másolja vagy importálja a sütiket, jelszavakat, bejelentkezéseket. A Brave maga választja a normál profil korábban használt ablakát/profilját. A Google újraazonosítását nem lehet ezzel garantáltan megelőzni.
+
+- **Első váltás:** zárd be az összes Brave-ablakot és a háttérben futó Brave-et, majd indítsd az **OpenCart - Brave** ikont. Az indító nem zár be böngészőt erővel. Ha a normál profil még nem létezik, előbb indítsd el egyszer a normál Brave-et.
+- N választással megmarad a külön OpenCart-profil és a korábbi OpenCartBraveDebug profil újrahasználata. A Chrome/Edge továbbra is külön profilt használ.
+- A normál profilon is szükséges a helyi CDP-kapcsolat: a gépen más helyi program is hozzáférhet a profil megnyitott lapjaihoz. Ezt a telepítő a jóváhagyás előtt jelzi; nem kapcsol ki böngészővédelmet vagy vállalati házirendet.
+- A normál profillal indított folyamatot PID, létrehozási idő, Windows-fiók/munkamenet és a helyi port tulajdonosa alapján jegyzi meg. Másik régi vagy külön profil CDP-portját nem fogadja el helyette. Az indítási jegyzék csak folyamat-/útvonaladatot tartalmaz, bejelentkezési adatot nem.
+- Kézi indítási hibánál érthető ablak jelenik meg; automatikus indításnál napló készül. A másolás csendes működése változatlan.
+- Az admintelepítő megvárja a normál felhasználói indító tényleges sikeres kilépését; már élő másik CDP nem fedhet el profilindítási hibát.
+- A PowerShell-kompatibilitási indító a böngésző elindulása után visszatér; a nyitva maradó böngészőablak nem tartja fel a telepítést.
+
+Automatizált mód: `telepites.bat "C:\Scripts"` (normál Brave, automatikus indítás kikapcsolva). Külön profil: `telepites.bat "C:\Scripts" /autostart:off /brave:isolated`. Automatikus indításhoz a második argumentum `/autostart:on`.
+
+[Használati/adatkezelési tájékoztató](HASZNALATI_FELTETELEK.txt) · [Ellenőrzési jegyzőkönyv](docs/verification-v1.1.12.md)
 
 ## v1.1.11: átlátható telepítés, natív böngészőindító, eltávolítás
 
@@ -51,18 +69,18 @@ Az országkód a webshop domainjéből jön, nem a böngésző nyelvéből.
 
 Telepítéskor a `telepites.bat` **bekéri a telepítési mappát**. Az Enter lenyomására az alapértelmezett mappát használja:
 
-`D:\3d lámpa\Photoshop és Illustrator scriptek`
+`C:\Scripts`
 
-Más mappa esetén egyszerűen gépeld be a teljes útvonalat, például `E:\Munka\Scriptek` (akár idézőjelek között is). Ha a célmappa még nem létezik, a telepítő megpróbálja létrehozni. Nem telepít automatikusan a `C:\Scripts` alá.
+Más mappa esetén egyszerűen gépeld be a teljes útvonalat, például `E:\Munka\Scriptek` (akár idézőjelek között is). Ha a célmappa még nem létezik, a telepítő megpróbálja létrehozni. Enter esetén a `C:\Scripts` mappát használja; más teljes útvonal továbbra is megadható.
 
 1. Zárd be a régi másoló EXE-t, ha még fut.
 2. Csomagold ki a ZIP-et, és indítsd a `telepites.bat`-ot. A program EXE-fájlja a BAT mellett legyen.
-3. Válassz telepítési helyet, olvasd el a változtatásokat és a [használati tájékoztatót](HASZNALATI_FELTETELEK.txt), majd hagyd jóvá a telepítést. Az automatikus böngészőindítás külön I/N választás; Enter esetén kikapcsolva marad. Frissítéskor az N választás a régi saját automatikus indítót is eltávolítja. A telepítő az EXE-t és a scripteket backup nélkül frissíti, a böngészőbeállításokat és a parancsikonokat szintén backup nélkül írja. A korábbi telepítő saját, ismert nevű `.backup_...` fájljait törli a célmappából, a közös Asztalról, a Start menüből és az Indítópultból.
+3. Válassz telepítési helyet és Brave-profilt, olvasd el a változtatásokat és a [használati tájékoztatót](HASZNALATI_FELTETELEK.txt), majd hagyd jóvá a telepítést. Az automatikus böngészőindítás külön I/N választás; Enter esetén kikapcsolva marad. Frissítéskor az N választás a régi saját automatikus indítót is eltávolítja. A telepítő az EXE-t és a scripteket backup nélkül frissíti, a böngészőbeállításokat és a parancsikonokat szintén backup nélkül írja. A korábbi telepítő saját, ismert nevű `.backup_...` fájljait törli a célmappából, a közös Asztalról, a Start menüből és az Indítópultból.
 4. Teszteld egy és két különböző nyitott rendelés mellett, lehetőleg aktív Illustrator ablakkal.
 
 Automatizált telepítéshez a célmappa első argumentumként is átadható: `telepites.bat "E:\Munka\Scriptek"`. Ez a mód nem kér billentyűbevitelt, és automatikus indítás nélkül telepít. Az automatikus indítás csak kifejezett `/autostart:on` második argumentummal engedélyezett: `telepites.bat "E:\Munka\Scriptek" /autostart:on`.
 
-**Fontos:** Ez a feltöltött hibás Go-alapú EXE működését reprodukáló/javító forrás, nem az eredeti elveszett forrásfájl visszafejtett, byte-pontos másolata. Mivel a Windows és az Illustrator nem érhető el a tesztkörnyezetben, a fókusz és a konzol valós viselkedését a felhasználó gépén is tesztelni kell. Hibák logja: `%TEMP%\name_number_copy_error.log`.
+**Fontos:** Ez a feltöltött hibás Go-alapú EXE működését reprodukáló/javító forrás, nem az eredeti elveszett forrásfájl visszafejtett, byte-pontos másolata. Windows- és telepítőtesztek, továbbá tiszta GitHub Windows-környezetben valódi Brave-próba tartozik a kiadáshoz. A fókusz és a konzol valós Illustrator-munkamenetbeli viselkedését továbbra is a felhasználó gépén kell ellenőrizni. Hibák logja: `%TEMP%\name_number_copy_error.log`.
 
 ## Fordítás / ellenőrzés
 
@@ -79,7 +97,7 @@ Az `-H windowsgui` szükséges, hogy egy rendelésnél ne nyíljon konzol. Az `A
 - Adatbázist, webshop-állományokat és rendeléseket nem módosít.
 - A vágólapot csak sikeresen kiolvasott, kiválasztott rendelésnél írja.
 - CDP WebSocket csak localhost `9222`/`9223` porton engedélyezett.
-- Hibáknál nem ír ki felugró ablakot, helyette naplófájlba ír.
+- A másolási hibákat naplózza. Kézi böngészőindítás hibáját olvasható ablakban is jelzi; automatikus indításnál napló készül.
 
 ## Korábbi böngészőbeállítás (v1.1.0-rc.1; történeti leírás)
 

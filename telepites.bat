@@ -9,7 +9,7 @@ rem Brave/Chrome felismeres, CDP-profil, 9222/9223 port es login autostart.
 set "SOURCE=%~dp0name - number copy.exe"
 set "SCRIPT_SETUP=%~dp0setup_browser.ps1"
 set "SCRIPT_START=%~dp0start_opencart_browser.ps1"
-set "DEFAULT_DIR=D:\3d lámpa\Photoshop és Illustrator scriptek"
+set "DEFAULT_DIR=C:\Scripts"
 set "INTERACTIVE=1"
 set "INSTALL_DIR="
 
@@ -56,20 +56,29 @@ echo Celmappa: "%INSTALL_DIR%"
 echo.
 echo MUKODES: helyi OpenCart-nev/rendelesszam olvasasa, masolas a vagolapra.
 echo TELEPITES: EXE es sajat scriptek; kozos Asztal/Start menu ikonok; nincs backup.
-echo BONGESZO: meglevo Brave/Chrome/Edge, kulon OpenCart-profil, helyi CDP 9222/9223.
+echo BONGESZO: Brave meglevo normal profil VAGY kulon OpenCart-profil; helyi CDP 9222/9223.
+echo Normal Brave-profilnal a regi belepesek megmaradnak; mas helyi program is elerheti a profil lapjait.
+echo A Brave-et nem zarom be. Az elso atallashoz minden Brave-ablakot neked kell bezarnod.
+echo Google ujraazonositast nem tudunk megakadalyozni. Chrome/Edge kulon profilja megmarad.
 echo Nincs kulso adatkuldes, telemetria, programletoltes vagy vedelmi beallitasmodositas.
 echo Admin inditasnal ideiglenes, normal jogu Windows-feladat indul, majd torlodik.
 echo Eltavolitas: eltavolitas.bat. Bongeszok es profilok megmaradnak.
 echo Reszletes tajekoztato: "%~dp0HASZNALATI_FELTETELEK.txt"
 if /I "%~2"=="/elevated-child" goto :CHECK_ELEVATION
 set "NNC_AUTOSTART=Off"
+set "NNC_BRAVE_PROFILE=Existing"
 if /I "%~2"=="/autostart:on" set "NNC_AUTOSTART=On"
+if /I "%~3"=="/brave:isolated" set "NNC_BRAVE_PROFILE=Isolated"
 if "%INTERACTIVE%"=="0" goto :CHECK_ELEVATION
 echo.
 if exist "%TARGET%" echo [INFO] A meglevo fajlok backup nelkul frissulnek.
 set "ANSWER="
 set /p "ANSWER=Automatikus bongeszoinditas MINDEN felhasznalonal bejelentkezeskor? (I/N, Enter=N): "
 if /I "%ANSWER%"=="I" set "NNC_AUTOSTART=On"
+set "ANSWER="
+set /p "ANSWER=Meglevo NORMAL Brave-profilt es belepeseket hasznaljam? (I/N, Enter=I): "
+if /I "%ANSWER%"=="N" set "NNC_BRAVE_PROFILE=Isolated"
+echo Valasztott Brave-profil: %NNC_BRAVE_PROFILE%
 echo Valasztott automatikus inditas: %NNC_AUTOSTART%
 set "ANSWER="
 set /p "ANSWER=Jovahagyod a fenti telepitest/frissitest? (I/N): "
@@ -141,7 +150,7 @@ if errorlevel 1 goto :SCRIPT_FAIL
 echo [INFO] Brave/Chrome/Edge gepszintu felismerese es beallitasa...
 rem A tesztparameterek kizarolag a CI tesztkornyezetben aktivak.
 if "%NNC_TEST_SKIP_LAUNCH%"=="1" goto :SETUP_TEST
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%INSTALL_DIR%\setup_browser.ps1" -InstallDir "%INSTALL_DIR%" -AutoStart "%NNC_AUTOSTART%"
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%INSTALL_DIR%\setup_browser.ps1" -InstallDir "%INSTALL_DIR%" -AutoStart "%NNC_AUTOSTART%" -BraveProfileMode "%NNC_BRAVE_PROFILE%"
 if errorlevel 1 goto :BROWSER_FAIL
 if /I "%~2"=="/elevated-child" goto :MACHINE_STAGE_SUCCESS
 goto :VERIFY_ADMIN
@@ -151,7 +160,7 @@ echo [OK] Gepszintu telepites sikeres. Normal felhasznaloi CDP teszt folytatodik
 endlocal & exit /b 0
 
 :SETUP_TEST
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%INSTALL_DIR%\setup_browser.ps1" -InstallDir "%INSTALL_DIR%" -AutoStart "%NNC_AUTOSTART%" -BravePath "%NNC_TEST_BRAVE_PATH%" -ChromePath "%NNC_TEST_CHROME_PATH%" -EdgePath "%NNC_TEST_EDGE_PATH%" -TestRoot "%NNC_TEST_ROOT%" -SkipLaunch
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%INSTALL_DIR%\setup_browser.ps1" -InstallDir "%INSTALL_DIR%" -AutoStart "%NNC_AUTOSTART%" -BraveProfileMode "%NNC_BRAVE_PROFILE%" -BravePath "%NNC_TEST_BRAVE_PATH%" -ChromePath "%NNC_TEST_CHROME_PATH%" -EdgePath "%NNC_TEST_EDGE_PATH%" -TestRoot "%NNC_TEST_ROOT%" -SkipLaunch
 if errorlevel 1 goto :BROWSER_FAIL
 goto :SUCCESS
 
@@ -234,7 +243,8 @@ echo [INFO] Backup nem keszul; a korabbi telepitobackupok eltavolitva.
 echo [INFO] Automatikus bongeszoinditas: %NNC_AUTOSTART% ^(minden felhasznalonak^).
 echo [INFO] Eltavolitas: "%INSTALL_DIR%\eltavolitas.bat"
 echo [INFO] A kozos Asztalon es Start menuben letrejottek az OpenCart - Brave/Chrome/Edge ikonok.
-echo [INFO] A bongeszo minden felhasznalonak sajat, elkulonitett OpenCart-profilt hasznal.
+echo [INFO] Brave-profil: %NNC_BRAVE_PROFILE%; minden felhasznalo sajat belepeseivel.
+echo [INFO] Ha a Brave mar futott, zard be minden ablakat, es inditsd az OpenCart - Brave ikont.
 if "%INTERACTIVE%"=="1" pause
 endlocal & exit /b 0
 :FAIL

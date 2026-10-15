@@ -6,7 +6,7 @@ $destination = Join-Path $stage 'sajat mappa é ! & (teszt)'
 $machine = Join-Path $stage 'machine'
 $profile = Join-Path $stage 'user\NameNumberCopy\BrowserProfiles\Chrome'
 New-Item -ItemType Directory -Path $stage -Force | Out-Null
-function Invoke-ConsentInstaller([string]$AutoAnswer, [string]$Approve, [int]$Expected) {
+function Invoke-ConsentInstaller([string]$AutoAnswer, [string]$Approve, [int]$Expected, [string]$BraveAnswer = 'I') {
     $info = New-Object Diagnostics.ProcessStartInfo
     $info.FileName = $env:ComSpec
     $info.Arguments = '/d /v:off /s /c ""%NNC_CONSENT_INSTALLER%""'
@@ -24,6 +24,8 @@ function Invoke-ConsentInstaller([string]$AutoAnswer, [string]$Approve, [int]$Ex
     $process.StandardInput.WriteLine($destination)
     $promptText += Read-InstallerPrompt $process '(I/N, Enter=N): '
     $process.StandardInput.WriteLine($AutoAnswer)
+    $promptText += Read-InstallerPrompt $process '(I/N, Enter=I): '
+    $process.StandardInput.WriteLine($BraveAnswer)
     $promptText += Read-InstallerPrompt $process '(I/N): '
     $process.StandardInput.WriteLine($Approve)
     $process.StandardInput.Close()
@@ -40,6 +42,11 @@ if (Test-Path -LiteralPath $machine) { throw 'Cancellation changed shortcuts' }
 Invoke-ConsentInstaller 'N' 'I' 0
 $startup = Join-Path $machine 'CommonStartup\OpenCart Rendelesmasolo - bongeszoinditas.lnk'
 if (Test-Path -LiteralPath $startup) { throw 'Autostart installed without consent' }
+$config = Get-Content -LiteralPath (Join-Path $destination 'opencart_browser_config.json') -Raw | ConvertFrom-Json
+if ($config.BraveProfileMode -ne 'Existing') { throw 'Existing Brave profile choice lost' }
+Invoke-ConsentInstaller 'N' 'I' 0 'N'
+$config = Get-Content -LiteralPath (Join-Path $destination 'opencart_browser_config.json') -Raw | ConvertFrom-Json
+if ($config.BraveProfileMode -ne 'Isolated') { throw 'Separate Brave profile choice lost' }
 Invoke-ConsentInstaller 'I' 'I' 0
 if (-not (Test-Path -LiteralPath $startup)) { throw 'Approved autostart missing' }
 Invoke-ConsentInstaller 'N' 'I' 0

@@ -16,7 +16,13 @@ Ehhez Windows UAC szükséges. A PowerShell telepítőparancsai csak az adott
 folyamatban futnak; a Windows védelmét és tartós végrehajtási házirendjét
 nem módosítják. Nem készül backup; a korábbi saját telepítőbackupok törlődnek.
 
-A meglévő Brave/Chrome/Edge külön OpenCart-profillal indul. CDP a helyi
+A Brave a választásod szerint a meglévő normál profiloddal vagy külön OpenCart-
+profillal indul. Normál profil: az adott Windows-felhasználó saját Brave User Data
+mappája; nincs sütimásolás, jelszóimport vagy munkamenet-hamisítás. A Google újabb
+azonosítást így is kérhet. A Chrome/Edge továbbra is külön profillal indul.
+Normál Brave esetén a helyi CDP a normál profil lapjait is elérhetővé teszi más
+helyi programok számára. Első váltás előtt zárd be a Brave-et; erővel nem állítjuk le.
+A telepítő alapértelmezett célmappája C:\Scripts, szabadon módosítható. CDP a helyi
 127.0.0.1 címen, 9222/9223 porton működik; más helyi program is hozzáférhet.
 A szokásos böngészőprofil és az alapértelmezett böngésző nem változik.
 Közvetlen adminisztrátori telepítésnél egy látható, ideiglenes Windows-feladat

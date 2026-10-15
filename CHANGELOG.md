@@ -1,3 +1,14 @@
+## v1.1.12 – 2026-10-15
+
+- Alapértelmezett telepítési hely C:\Scripts; Enterrel elfogadott cél külön útvonalteszttel.
+- Választható meglévő normál Brave-profil: valódi korábbi profilmappa, sütimásolás és jelszó-/munkamenet-import nélkül. Windows-felhasználónként a saját adatok maradnak.
+- Külön OpenCart-profil továbbra is választható; Chrome/Edge profilkezelése változatlan.
+- Normál Brave indítási jegyzék és helyi folyamat-/porttulajdonos-ellenőrzés; másik korábbi CDP-profilt nem fogad el helyette. Nem zár be futó böngészőt.
+- Kézi indításnál látható hiba, automatikus indításnál napló; az adminellenőrzés tényleges sikeres indítást vár meg.
+- A PowerShell-kompatibilitási indító csak az indítófolyamatra vár; a nyitva maradó böngésző nem tartja fel a telepítést.
+- Kiadás előtti, elkülönített GitHub Windows-próba a hivatalos, aláírt Brave v1.97.57 tényleges normál adatkönyvtárával, újrahasználattal és újraindítással.
+- Teljes profil-/folyamat-/telepítési regressziók. A Google újraazonosítás elmaradása nem garantálható.
+
 ## v1.1.11 – 2026-10-14
 
 - Az eltávolító saját BAT-fájljának törlése után helyesen, 0 kilépési kóddal fejeződik be; nincs „The batch file cannot be found” hiba.

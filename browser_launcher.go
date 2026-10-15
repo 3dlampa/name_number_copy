@@ -15,11 +15,60 @@ import (
 )
 
 type browserSettings struct {
-	Primary  string
-	Browsers map[string]struct {
+	Primary          string
+	BraveProfileMode string
+	Browsers         map[string]struct {
 		Exe  string
 		Port int
 	}
+}
+
+type browserIdentity struct {
+	PID     uint32
+	Created uint64
+}
+type browserLaunchRecord struct {
+	Profile  string
+	Identity browserIdentity
+}
+
+func selectedBrowserProfile(localData, name, mode string) (string, bool, error) {
+	if name != "Brave" || mode == "" || mode == "Isolated" {
+		return browserProfile(localData, name), false, nil
+	}
+	if mode != "Existing" {
+		return "", false, errors.New("ismeretlen Brave-profilmód")
+	}
+	profile := filepath.Join(localData, "BraveSoftware", "Brave-Browser", "User Data")
+	if info, err := os.Stat(profile); err != nil || !info.IsDir() {
+		return "", false, errors.New("nincs meglévő normál Brave-profil ennél a Windows-felhasználónál; indítsd el egyszer a normál Brave-et, vagy válaszd a külön OpenCart-profilt")
+	}
+	return profile, true, nil
+}
+
+func browserRecordPath(localData string) string {
+	return filepath.Join(localData, "NameNumberCopy", "BrowserProfiles", "brave-launch.json")
+}
+
+func recordedBrowserMatches(localData, profile string, identity browserIdentity) bool {
+	data, err := os.ReadFile(browserRecordPath(localData))
+	if err != nil || len(data) > 4096 {
+		return false
+	}
+	var record browserLaunchRecord
+	return json.Unmarshal(data, &record) == nil && strings.EqualFold(filepath.Clean(record.Profile), filepath.Clean(profile)) && record.Identity == identity
+}
+
+func recordBrowserLaunch(localData, profile string, identity browserIdentity) error {
+	path := browserRecordPath(localData)
+	if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
+		return err
+	}
+	data, err := json.Marshal(browserLaunchRecord{profile, identity})
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(path, data, 0600)
 }
 
 var browserSubpaths = map[string]string{
@@ -133,21 +182,43 @@ func runBrowserLauncher(args []string) error {
 	if localData == "" {
 		return errors.New("nem érhető el a LOCALAPPDATA mappa")
 	}
+	profile, existingProfile, err := selectedBrowserProfile(localData, name, config.BraveProfileMode)
+	if err != nil {
+		return err
+	}
 	// No proxy or redirect: CDP stays on the explicitly selected loopback endpoint.
 	client := &http.Client{Timeout: 3 * time.Second, Transport: &http.Transport{Proxy: nil}, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
 	defer client.CloseIdleConnections()
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
 	port := browserPort(name)
+	// Explicit fixture roots use their own local port and never disturb a live host browser.
+	if !useInstalledBrowsers && config.Browsers[name].Port > 0 && config.Browsers[name].Port <= 65535 {
+		port = config.Browsers[name].Port
+	}
 	logBrowserMessage(fmt.Sprintf("INFO: verzio=%s; bongeszo=%s; port=%d; CDP ellenorzes", appVersion, name, port))
 	if healthyBrowserCDP(ctx, client, port) {
+		if existingProfile {
+			identity, err := browserEndpointIdentity(port)
+			if err != nil || !recordedBrowserMatches(localData, profile, identity) {
+				return errors.New("a CDP-porton már másik vagy korábban indított böngésző fut; zárd be a Brave ablakait, majd indítsd az OpenCart - Brave ikont a normál profilhoz")
+			}
+		}
 		logBrowserMessage("OK: CDP mar elerheto")
 		return nil
 	}
 	if checkOnly {
 		return fmt.Errorf("a %s CDP %d portja nem érhető el", name, port)
 	}
-	profile := browserProfile(localData, name)
+	if existingProfile {
+		running, err := browserProcessRunning(filepath.Base(path))
+		if err != nil {
+			return err
+		}
+		if running {
+			return errors.New("a Brave már fut hibakereső kapcsolat nélkül; zárd be az összes Brave-ablakot és a háttérben futó Brave-et, majd indítsd az OpenCart - Brave ikont; a bejelentkezéseid megmaradnak")
+		}
+	}
 	if err := os.MkdirAll(profile, 0700); err != nil {
 		return err
 	}
@@ -160,6 +231,15 @@ func runBrowserLauncher(args []string) error {
 	go func() { _ = command.Wait() }()
 	for ctx.Err() == nil {
 		if healthyBrowserCDP(ctx, client, port) {
+			if existingProfile {
+				identity, err := browserEndpointIdentity(port)
+				if err != nil || identity.PID != uint32(command.Process.Pid) {
+					return errors.New("a CDP nem a most indított Brave-folyamathoz tartozik; a korábbi böngésző nem kerül használatba")
+				}
+				if err := recordBrowserLaunch(localData, profile, identity); err != nil {
+					return err
+				}
+			}
 			logBrowserMessage("OK: bongeszo elindult, mindket CDP vegpont elerheto")
 			return nil
 		}
